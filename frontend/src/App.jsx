@@ -11,7 +11,10 @@ function App() {
         <NavBar />
         <Routes>
           <Route path="/" element={<ProductPage />} />
-          <Route path="readymade-stockers" element={ReadymadeStickerPage} />
+          <Route
+            path="/readymade-stickers"
+            element={<ReadymadeStickerPage />}
+          />
         </Routes>
       </BrowserRouter>
     </>
