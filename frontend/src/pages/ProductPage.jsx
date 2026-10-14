@@ -1,7 +1,9 @@
 import ProductCard from "../components/ProductCard";
-import FloralSticker from "../assets/stickers/FloralSticker.jpeg";
+import axios from "axios";
+import { useState, useEffect } from "react";
+import { API_URL } from "../api";
 
-const products = [
+/*export const products = [
   {
     id: 1,
     name: "Floral Sticker",
@@ -26,9 +28,25 @@ const products = [
     price: "Rs.600",
     image: FloralSticker,
   },
-];
+];*/
 
 function ProductPage() {
+  const [product, setProduct] = useState([]);
+
+  useEffect(() => {
+    async function fetchProduct(_req, res) {
+      try {
+        const response = await axios.get(`${API_URL}/products`);
+        const data = response.data;
+        setProduct(data);
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+        res.status(500).json({ error: "Failed to fetch products" });
+      }
+    }
+    fetchProduct();
+  }, []);
+
   return (
     <div className="main-page">
       <h4>CRAFTED WITH GRATITUDE</h4>
@@ -37,12 +55,11 @@ function ProductPage() {
       <div className="product-container">
         <h4>POPULAR STICKERS</h4>
         <div className="product-grid">
-          {products.map((product) => (
+          {product.map((prod) => (
             <ProductCard
-              key={product.id}
-              name={product.name}
-              price={product.price}
-              image={product.image}
+              key={prod.product_id}
+              image={prod.image_url}
+              name={prod.product_name}
             />
           ))}
         </div>

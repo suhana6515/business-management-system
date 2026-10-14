@@ -1,7 +1,9 @@
+html,
+body,
 #root {
-  width: 100%;
   margin: 0;
-  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -15,19 +17,56 @@ body {
 /*NavBar CSS*/
 .nav-bar{
   display: flex;
-  flex-direction: wrap;
-  gap: 40px;
   justify-content: space-between;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border-radius: 8px;
-  margin: 0px 300px;
   padding: 20px;
+  align-items: center;
 }
 
-select{
-  padding: 10px;
-  border: none;
+.nav-bar a{
+  text-decoration: none;
+  color: black;
+}
+
+.category-label{
+  display: flex;
+  gap: 20px;
+}
+
+.category-label a{
+  text-decoration: none;
+  color: black;
+}
+
+.category-label h4{
+  margin: 0;
+  color: black;
+  cursor: pointer;
+  text-align: center;
+}
+
+.search-form {
+  position: relative;
+  display: flex;
+  padding: 0;
+}
+
+.search-input {
+  padding: 10px 15px 10px 40px;
+  border: 1px solid black;
   font-size: 16px;
+  border-radius: 50px;
+  width: 300px;
+}
+
+.search-icon{
+  position: relative;
+  padding-top: 10px;
+  left: 30px;
+  font-size: 20px;
+  align-items: left;
+  z-index: 1;
 }
 
 /*Product Page CSS*/
@@ -75,14 +114,6 @@ select{
   display: block;
 }
 
-.product-card h4{
-  text-align: center;
-}
-
-.price{
-  font-size: 14px;
-}
-
 .add-to-cart-button{
   background-color: black;
   color: white;
@@ -105,12 +136,32 @@ select{
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background-color: white;
+  background-color: beige;
   border: 1px;
   border-radius: 8px;
   width: 300px;
-  height: 150px;
+  height: 400px;
   padding: 20px;
+  
+}
+
+.close-icon{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding-right: 10px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.modal h4{
+  text-align: left;
+}
+
+.size-option{
+  display: flex;
+  margin: 10px;
+  gap: 20px;
 }
 
 .close-modal-button{
@@ -118,7 +169,36 @@ select{
   color: white;
   border: none;
   padding: 10px 20px;
-  margin-top: 20px;
+  margin-top: 10px;
+}
+
+/*Quantity Editor CSS*/
+
+.quantity-editor{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.quantity-input{
+  border-radius: 150px;
+  width: 200px;
+  padding: 10px;
+  border: none;
+}
+
+.total-price{
+  padding: 10px;
+}
+
+/*Readymade Sticker Page CSS*/
+
+.readymade-sticker-grid{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  flex-direction: row;
+
 }
 
 
