@@ -1,111 +1,157 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Stage, Layer, Image, Transformer, Text, Group } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Image,
+  Transformer,
+  Text,
+  Group,
+  Circle,
+} from "react-konva";
 import { Html } from "react-konva-utils";
 import useImage from "use-image";
-import RichText from "./RichText";
-import { useStickerStore } from "../../stores/useStickerStore";
 import { observer } from "mobx-react-lite";
 
-const URLImage = observer(({ element }) => {
-  const [image] = useImage(element.url);
+import RichText from "./RichText";
+import { editorStore } from "../../stores/editorStore";
+
+const DeleteCross = ({ x, y, onDelete }) => (
+  <Group
+    x={x}
+    y={y}
+    onClick={(e) => {
+      e.cancelBubble = true;
+      onDelete();
+    }}
+    onTap={(e) => {
+      e.cancelBubble = true;
+      onDelete();
+    }}
+  >
+    <Circle radius={11} fill="#7b7878" stroke="white" strokeWidth={1} />
+
+    <Text
+      x={-10}
+      y={-10}
+      width={20}
+      height={20}
+      text="×"
+      fontSize={20}
+      fontStyle="bold"
+      fill="white"
+      align="center"
+      verticalAlign="middle"
+      listening={false}
+    />
+  </Group>
+);
+
+const URLImage = ({ url, radius = 100, showCross, onSelect, onDelete }) => {
+  const [image] = useImage(url);
 
   if (!image) return null;
 
   return (
     <Group
-      x={element.x}
-      y={element.y}
-      clipFunc={(ctx) => {
-        ctx.beginPath();
-        ctx.arc(
-          element.radius,
-          element.radius,
-          element.radius,
-          0,
-          Math.PI * 2,
-          false,
-        );
+      x={150}
+      y={150}
+      onClick={(e) => {
+        e.cancelBubble = true;
+        onSelect();
+      }}
+      onTap={(e) => {
+        e.cancelBubble = true;
+        onSelect();
       }}
     >
-      <Image
-        image={image}
-        width={element.radius * 2}
-        height={element.radius * 2}
-        draggable
-      />
+      <Group
+        clipFunc={(ctx) => {
+          ctx.beginPath();
+          ctx.arc(radius, radius, radius, 0, Math.PI * 2, false);
+        }}
+      >
+        <Image image={image} width={radius * 2} height={radius * 2} draggable />
+      </Group>
+
+      {showCross && <DeleteCross x={radius * 2} y={0} onDelete={onDelete} />}
     </Group>
   );
-});
+};
 
 const StickerEditor = observer(() => {
-  const store = useStickerStore();
+  const store = editorStore;
 
-  const [isEditing, setIsEditing] = useState(false);
   const [editingNode, setEditingNode] = useState(null);
+  const [selectedElement, setSelectedElement] = useState(null);
+
+  const textRef = useRef(null);
+  const transformerRef = useRef(null);
+  const stageRef = useRef(null);
 
   const handleUpload = (event) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
 
     if (!file) return;
+
     const reader = new FileReader();
 
     reader.onload = () => {
-      store.addImage(reader.result);
+      if (typeof reader.result === "string") {
+        store.setImageObjectURL(reader.result);
+        setSelectedElement("image");
+        store.selectText(false);
+      }
     };
 
     reader.readAsDataURL(file);
     event.target.value = "";
   };
 
-  const textRef = useRef(null);
-  const transformerRef = useRef(null);
-  const stageRef = useRef(null);
+  const handleTextEdit = useCallback(
+    (e) => {
+      e.cancelBubble = true;
 
-  useEffect(() => {
-    const transformer = transformerRef.current;
-    const stage = stageRef.current;
-
-    if (!transformer || !stage) return;
-
-    if (!store.selectedId) {
-      transformer.nodes([]);
-      return;
-    }
-
-    const selectedNode = stage.findOne(`#${store.selectedId}`);
-
-    transformer.nodes(selectedNode ? [selectedNode] : []);
-    transformer.getLayer()?.batchDraw();
-  }, [store.selectedId, store.elements.length]);
-
-  const handleTextEdit = (e) => {
-    const node = e.target;
-
-    store.selectElement(node.id());
-
-    setEditingNode(node);
-    setIsEditing(true);
-  };
+      setSelectedElement("text");
+      setEditingNode(e.target);
+      store.startEditing();
+    },
+    [store],
+  );
 
   const handleTextCommit = useCallback(
-    (newText, textStyle) => {
-      if (editingNode) {
-        store.updateElement(editingNode.id(), {
-          value: newText,
-          ...textStyle,
-        });
-      }
-
-      setIsEditing(false);
+    (newText, newStyle, html) => {
+      store.commitText(newText, newStyle, html);
       setEditingNode(null);
+      setSelectedElement("text");
     },
-    [editingNode, store],
+    [store],
   );
 
   const handleTextCancel = useCallback(() => {
-    setIsEditing(false);
+    store.cancelEditing();
     setEditingNode(null);
-  }, []);
+    setSelectedElement("text");
+  }, [store]);
+
+  const handleDeleteText = () => {
+    setEditingNode(null);
+    setSelectedElement(null);
+    store.deleteText();
+  };
+
+  const handleDeleteImage = () => {
+    setSelectedElement(null);
+    store.deleteImage();
+  };
+
+  const handleCanvasOutsideClick = (e) => {
+    if (store.isEditing) return;
+
+    if (e.target === e.target.getStage()) {
+      store.selectText(false);
+      setSelectedElement(null);
+    }
+  };
 
   const handleWheel = (e) => {
     e.evt.preventDefault();
@@ -134,18 +180,48 @@ const StickerEditor = observer(() => {
 
     const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
 
-    stage.scale({
-      x: newScale,
-      y: newScale,
-    });
-
     const newPos = {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     };
 
+    stage.scale({ x: newScale, y: newScale });
     stage.position(newPos);
+
+    store.updateStage(newScale, newPos.x, newPos.y);
+    stage.batchDraw();
   };
+
+  useEffect(() => {
+    const stage = stageRef.current;
+
+    if (!stage) return;
+
+    stage.scale({ x: store.scale, y: store.scale });
+    stage.position({ x: store.stageX, y: store.stageY });
+    stage.batchDraw();
+  }, [store]);
+
+  useEffect(() => {
+    const transformer = transformerRef.current;
+    const textNode = textRef.current;
+
+    if (!transformer) return;
+
+    if (
+      store.showText &&
+      selectedElement === "text" &&
+      store.isTextSelected &&
+      !store.isEditing &&
+      textNode
+    ) {
+      transformer.nodes([textNode]);
+    } else {
+      transformer.nodes([]);
+    }
+
+    transformer.getLayer()?.batchDraw();
+  }, [store.showText, store.isTextSelected, store.isEditing, selectedElement]);
 
   return (
     <div
@@ -187,17 +263,26 @@ const StickerEditor = observer(() => {
         </label>
 
         <button
+          type="button"
           style={{
-            cursor: "pointer",
             display: "block",
+            width: "100%",
             padding: "20px",
             marginTop: "15px",
             background: "#f2f2f2",
+            border: "none",
             borderRadius: "6px",
+            cursor: "pointer",
+            textAlign: "center",
+            fontSize: "18px",
           }}
-          onClick={() => store.addText()}
+          onClick={() => {
+            store.showTextElement();
+            store.selectText(true);
+            setSelectedElement("text");
+          }}
         >
-          Text
+          Edit Text
         </button>
       </aside>
 
@@ -212,6 +297,7 @@ const StickerEditor = observer(() => {
         <header
           style={{
             height: "65px",
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             padding: "0 24px",
@@ -222,84 +308,101 @@ const StickerEditor = observer(() => {
         >
           <h2 style={{ fontSize: "20px" }}>Custom Editor</h2>
         </header>
+
         <Stage
-          width={store.width}
-          height={store.height}
+          width={Math.max(0, window.innerWidth - 220)}
+          height={Math.max(0, window.innerHeight - 65)}
           ref={stageRef}
           onWheel={handleWheel}
-          onMouseDown={(e) => {
-            if (e.target === e.target.getStage()) {
-              store.selectElement(null);
-            }
-          }}
-          onTouchStart={(e) => {
-            if (e.target === e.target.getStage()) {
-              store.selectElement(null);
-            }
-          }}
+          onMouseDown={handleCanvasOutsideClick}
+          onTouchStart={handleCanvasOutsideClick}
         >
           <Layer>
-            {store.elements.map((element) => {
-              if (element.type === "text") {
-                return (
-                  <Text
-                    ref={textRef}
-                    x={element.x}
-                    y={element.y}
-                    width={element.width}
-                    text={element.value}
-                    fontSize={element.fontSize}
-                    fontStyle={element.fontStyle}
-                    textDecoration={element.textDecoration}
-                    fill="black"
-                    draggable={!isEditing}
-                    visible={!isEditing}
-                    onClick={() => store.selectElement(element.id)}
-                    onDblClick={handleTextEdit}
-                    onDragEnd={(e) => {
-                      store.updateElement(element.id, {
-                        x: e.target.x(),
-                        y: e.target.y(),
-                      });
-                    }}
-                    onTransformEnd={(e) => {
-                      const node = e.target;
+            {store.showText && (
+              <Text
+                ref={textRef}
+                x={store.text.x}
+                y={store.text.y}
+                width={store.text.width}
+                text={store.text.value}
+                fontSize={store.text.fontSize}
+                fontStyle={store.text.fontStyle}
+                textDecoration={store.text.textDecoration}
+                fill="black"
+                visible={!store.isEditing}
+                draggable={!store.isEditing}
+                onClick={(e) => {
+                  e.cancelBubble = true;
+                  store.selectText(true);
+                  setSelectedElement("text");
+                }}
+                onTap={(e) => {
+                  e.cancelBubble = true;
+                  store.selectText(true);
+                  setSelectedElement("text");
+                }}
+                onDblClick={handleTextEdit}
+                onDblTap={handleTextEdit}
+                onDragEnd={(e) => {
+                  store.updateTextPosition(e.target.x(), e.target.y());
+                }}
+                onTransformEnd={() => {
+                  const node = textRef.current;
 
-                      const width = Math.max(30, node.width() * node.scaleX());
+                  if (!node) return;
 
-                      node.scaleX(1);
-                      node.scaleY(1);
+                  const width = Math.max(30, node.width() * node.scaleX());
 
-                      store.updateElement(element.id, {
-                        x: node.x(),
-                        y: node.y(),
-                        width,
-                      });
-                    }}
-                  />
-                );
-              }
-              if (element.type === "image") {
-                return (
-                  <URLImage key={element.id} element={element} store={store} />
-                );
-              }
-            })}
+                  node.scaleX(1);
+                  node.scaleY(1);
 
-            {isEditing && editingNode && (
+                  store.updateTextTransform(node.x(), node.y(), width);
+                }}
+              />
+            )}
+
+            {store.showText &&
+              selectedElement === "text" &&
+              !store.isEditing && (
+                <DeleteCross
+                  x={store.text.x + store.text.width}
+                  y={store.text.y}
+                  onDelete={handleDeleteText}
+                />
+              )}
+
+            {store.isEditing && editingNode && (
               <Html>
                 <RichText
+                  key="rich-text-editor"
                   textNode={editingNode}
+                  richHtml={store.text.richHtml}
                   onCommit={handleTextCommit}
                   onCancel={handleTextCancel}
                 />
               </Html>
             )}
 
-            {isEditing && (
-              <Transformer
-                ref={transformerRef}
-                enabledAnchors={["middle-left", "middle-right"]}
+            {store.showText &&
+              selectedElement === "text" &&
+              store.isTextSelected &&
+              !store.isEditing && (
+                <Transformer
+                  ref={transformerRef}
+                  enabledAnchors={["middle-left", "middle-right"]}
+                />
+              )}
+
+            {store.imageObjectURL && (
+              <URLImage
+                url={store.imageObjectURL}
+                radius={100}
+                showCross={selectedElement === "image"}
+                onSelect={() => {
+                  setSelectedElement("image");
+                  store.selectText(false);
+                }}
+                onDelete={handleDeleteImage}
               />
             )}
           </Layer>

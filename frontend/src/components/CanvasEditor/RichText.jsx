@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 const commands = [
   { command: "bold", label: <b>B</b> },
@@ -13,10 +13,11 @@ const headingSizes = {
   h2: 32,
 };
 
-function RichText({ textNode, onCommit, onCancel }) {
+function RichText({ textNode, richHtml = "", onCommit }) {
   const rootRef = useRef(null);
   const editorRef = useRef(null);
-  const [value, setValue] = useState(textNode?.text() ?? "");
+  const committedRef = useRef(false);
+
   const [style, setStyle] = useState({
     fontSize: textNode?.fontSize() ?? 24,
     fontStyle: textNode?.fontStyle() ?? "normal",
@@ -24,141 +25,178 @@ function RichText({ textNode, onCommit, onCancel }) {
   });
 
   useEffect(() => {
+    if (!textNode || !editorRef.current) return;
+
+    committedRef.current = false;
+
     const editor = editorRef.current;
-
-    if (!editor || !textNode) return;
-
-    editor.innerText = textNode.text();
+    editor.innerHTML = richHtml || textNode.text();
     editor.focus();
 
     const selection = window.getSelection();
     const range = document.createRange();
+
     range.selectNodeContents(editor);
     range.collapse(false);
+
     selection?.removeAllRanges();
     selection?.addRange(range);
   }, [textNode]);
 
+  const handleCommit = useCallback(() => {
+    if (committedRef.current || !editorRef.current) return;
+
+    committedRef.current = true;
+
+    const editor = editorRef.current;
+
+    onCommit(editor.innerText, style, editor.innerHTML);
+  }, [onCommit, style]);
+
   useEffect(() => {
-    const handleOutsidePointerDown = (event) => {
-      if (!rootRef.current?.contains(event.target)) {
-        onCommit(value, style);
+    const handleOutsideClick = (event) => {
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
+        handleCommit();
       }
     };
 
-    document.addEventListener("pointerdown", handleOutsidePointerDown);
-    return () =>
-      document.removeEventListener("pointerdown", handleOutsidePointerDown);
-  }, [onCommit, style, value]);
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, [handleCommit]);
 
   const executeCommand = (command, commandValue) => {
-    editorRef.current?.focus();
+    const editor = editorRef.current;
+
+    if (!editor) return;
+
+    editor.focus();
 
     if (command === "formatBlock") {
-      document.execCommand(command, false, `<${commandValue}>`);
-      setStyle((currentStyle) => ({
-        ...currentStyle,
+      document.execCommand("formatBlock", false, commandValue);
+
+      setStyle((current) => ({
+        ...current,
         fontSize: headingSizes[commandValue],
       }));
-    } else {
-      document.execCommand(command, false, null);
-      setStyle((currentStyle) => {
-        const isActive = document.queryCommandState(command);
 
-        if (command === "bold") {
-          return {
-            ...currentStyle,
-            fontStyle: isActive
-              ? currentStyle.fontStyle === "italic"
-                ? "bold italic"
-                : "bold"
-              : currentStyle.fontStyle.replace("bold", "").trim() || "normal",
-          };
-        }
+      return;
+    }
 
-        if (command === "italic") {
-          return {
-            ...currentStyle,
-            fontStyle: isActive
-              ? currentStyle.fontStyle === "bold"
-                ? "bold italic"
-                : "italic"
-              : currentStyle.fontStyle.replace("italic", "").trim() || "normal",
-          };
+    document.execCommand(command, false, null);
+
+    const active = document.queryCommandState(command);
+
+    if (command === "bold" || command === "italic") {
+      setStyle((current) => {
+        const styles = new Set(
+          current.fontStyle
+            .split(" ")
+            .filter((item) => item && item !== "normal"),
+        );
+
+        if (active) {
+          styles.add(command);
+        } else {
+          styles.delete(command);
         }
 
         return {
-          ...currentStyle,
-          textDecoration: isActive ? "underline" : "",
+          ...current,
+          fontStyle: [...styles].join(" ") || "normal",
         };
       });
+    } else if (command === "underline") {
+      setStyle((current) => ({
+        ...current,
+        textDecoration: active ? "underline" : "",
+      }));
     }
-
-    setValue(editorRef.current?.innerText ?? "");
   };
 
   const handleKeyDown = (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
-      onCancel();
+
+      if (!committedRef.current) {
+        handleCommit();
+      }
+
+      return;
     }
 
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
-      onCommit(value, style);
+      handleCommit();
     }
   };
 
   if (!textNode) return null;
 
-  const textPosition = textNode.position();
+  const position = textNode.position();
 
   return (
     <div
       ref={rootRef}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
       style={{
         position: "absolute",
-        top: `${textPosition.y}px`,
-        left: `${textPosition.x}px`,
-        width: `${Math.max(30, textNode.width())}px`,
-        zIndex: 1,
+        top: position.y,
+        left: position.x,
+        width: Math.max(200, textNode.width()),
+        zIndex: 1000,
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ display: "flex", gap: "4px", marginBottom: "4px" }}>
-        {commands.map(({ command, value: commandValue, label }) => (
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "4px",
+          marginBottom: "6px",
+          padding: "6px",
+        }}
+      >
+        {commands.map(({ command, value, label }) => (
           <button
-            key={`${command}-${commandValue ?? "default"}`}
+            key={`${command}-${value ?? "default"}`}
             type="button"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              executeCommand(command, commandValue);
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => executeCommand(command, value)}
+            style={{
+              padding: "5px 10px",
+              cursor: "pointer",
+              background: "white",
             }}
-            style={{ padding: "2px 8px", cursor: "pointer" }}
           >
             {label}
           </button>
         ))}
       </div>
+
       <div
         ref={editorRef}
         contentEditable
         suppressContentEditableWarning
-        onInput={(event) => setValue(event.currentTarget.innerText)}
         onKeyDown={handleKeyDown}
         style={{
-          minHeight: `${Math.max(30, textNode.height())}px`,
-          border: "1px solid #ccc",
+          minHeight: Math.max(40, textNode.height()),
+          width: "100%",
           padding: "8px",
           background: "white",
+          color: textNode.fill(),
           outline: "none",
-          fontSize: `${style.fontSize}px`,
+          fontSize: style.fontSize,
           fontFamily: textNode.fontFamily(),
           lineHeight: textNode.lineHeight() || "normal",
-          color: textNode.fill(),
-          fontStyle: style.fontStyle,
-          textDecoration: style.textDecoration,
           whiteSpace: "pre-wrap",
           overflowWrap: "break-word",
+          cursor: "text",
         }}
       />
     </div>
