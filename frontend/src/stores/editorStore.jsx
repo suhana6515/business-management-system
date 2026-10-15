@@ -8,21 +8,95 @@ const TextModel = types.model("TextModel", {
   richHtml: types.optional(types.string, ""),
   fontSize: types.optional(types.number, 24),
   fontStyle: types.optional(types.string, "normal"),
+  fontFamily: types.optional(types.string, "Arial"),
   textDecoration: types.optional(types.string, ""),
+});
+
+const TemplateTextModel = types.model("TemplateText", {
+  id: types.identifier,
+  value: types.string,
+  x: types.number,
+  y: types.number,
+  fontFamily: types.string,
+  fontSize: types.number,
+  fontStyle: types.optional(types.string, "normal"),
+  fill: types.optional(types.string, "#000000"),
+});
+
+const TextGroupModel = types.model("TextGroup", {
+  id: types.identifier,
+  x: types.number,
+  y: types.number,
+  texts: types.array(TemplateTextModel),
 });
 
 const EditorStore = types
   .model("EditorStore", {
     text: types.optional(TextModel, {}),
+    textGroups: types.optional(types.array(TextGroupModel), []),
     showText: types.optional(types.boolean, false),
     isEditing: types.optional(types.boolean, false),
     isTextSelected: types.optional(types.boolean, false),
+    x: types.optional(types.number, 100),
+    y: types.optional(types.number, 100),
+    width: types.optional(types.number, 200),
     imageObjectURL: types.maybeNull(types.string),
     scale: types.optional(types.number, 1),
     stageX: types.optional(types.number, 0),
     stageY: types.optional(types.number, 0),
   })
   .actions((self) => ({
+    updateTemplateText(groupId, textId, newValue) {
+      const group = self.textGroups.find((group) => group.id === groupId);
+
+      if (!group) return;
+
+      const text = group.texts.find((text) => text.id === textId);
+
+      if (!text) return;
+
+      text.value = newValue;
+    },
+
+    addTextTemplate(template) {
+      self.textGroups.push({
+        id: crypto.randomUUID(),
+        x: 150,
+        y: 150,
+        texts: template.texts.map((text) => ({
+          ...text,
+          id: crypto.randomUUID(),
+        })),
+      });
+    },
+
+    updateTextGroupPosition(id, x, y) {
+      const group = self.textGroups.find((group) => group.id === id);
+
+      if (group) {
+        group.x = x;
+        group.y = y;
+      }
+    },
+
+    updateTextGroupElement(groupId, textId, value) {
+      const group = self.textGroups.find((group) => group.id === groupId);
+
+      const text = group?.texts.find((text) => text.id === textId);
+
+      if (text) {
+        text.value = value;
+      }
+    },
+
+    setFontFamily(fontFamily) {
+      self.text.fontFamily = fontFamily;
+    },
+
+    setFontStyle(fontStyle) {
+      self.text.fontFamily = fontStyle;
+    },
+
     showTextElement() {
       self.showText = true;
       self.isEditing = false;
@@ -76,6 +150,10 @@ const EditorStore = types
       self.imageObjectURL = null;
     },
 
+    deleteTemplateText(groupId) {
+      self.textGroups = self.textGroups.filter((group) => group.id !== groupId);
+    },
+
     updateTextPosition(x, y) {
       self.text.x = x;
       self.text.y = y;
@@ -87,8 +165,17 @@ const EditorStore = types
       self.text.width = width;
     },
 
-    setImageObjectURL(url) {
+    setImageObjectURL(url, x = 150, y = 150) {
       self.imageObjectURL = url;
+      self.x = x;
+      self.y = y;
+      self.width = 200;
+    },
+
+    updateImageTransform(x, y, width) {
+      self.x = x;
+      self.y = y;
+      self.width = width;
     },
 
     updateStage(scale, x, y) {
