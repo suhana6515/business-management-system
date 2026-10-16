@@ -7,6 +7,7 @@ import {
   Text,
   Group,
   Circle,
+  Rect,
 } from "react-konva";
 import { Html } from "react-konva-utils";
 import useImage from "use-image";
@@ -14,14 +15,26 @@ import { observer } from "mobx-react-lite";
 import RichText from "./RichText";
 import { editorStore } from "../../stores/editorStore";
 
-const fontFamilies = [
-  "Arial",
-  "Georgia",
-  "Times New Roman",
-  "Verdana",
-  "Roboto",
-  "Poppins",
-  "Montserrat",
+// const fontFamilies = [
+//   "Arial",
+//   "Georgia",
+//   "Times New Roman",
+//   "Verdana",
+//   "Roboto",
+//   "Poppins",
+//   "Montserrat",
+// ];
+const backgroundColors = [
+  "#ffffff",
+  "#000000",
+  "#f87171",
+  "#fbbf24",
+  "#34d399",
+  "#60a5fa",
+  "#a78bfa",
+  "#f9a8d4",
+  "#d1d5db",
+  "#fef3c7",
 ];
 
 const fontTemplates = [
@@ -122,7 +135,6 @@ const URLImage = forwardRef(
     if (!image) return null;
 
     const radius = width / 2;
-
     return (
       <Group
         ref={ref}
@@ -153,6 +165,10 @@ const URLImage = forwardRef(
   },
 );
 
+const MM_TO_PX = 300 / 25.4;
+const stageWidth = 64 * MM_TO_PX;
+const stageHeight = 34 * MM_TO_PX;
+
 const StickerEditor = observer(() => {
   const store = editorStore;
 
@@ -161,6 +177,9 @@ const StickerEditor = observer(() => {
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [activePanel, setActivePanel] = useState(null);
   const [editingTemplateTextId, setEditingTemplateTextId] = useState(null);
+  const [fitScale, setFitScale] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const finalScale = fitScale * zoom;
 
   const textRef = useRef(null);
   const transformerRef = useRef(null);
@@ -168,6 +187,8 @@ const StickerEditor = observer(() => {
   const imageRef = useRef(null);
   const imageTransformerRef = useRef(null);
   const templateTransformerRef = useRef(null);
+  const containerRef = useRef(null);
+  const canvasContainerRef = useRef(null);
 
   const handleUpload = (event) => {
     const file = event.target.files?.[0];
@@ -241,52 +262,13 @@ const StickerEditor = observer(() => {
 
   const handleWheel = (e) => {
     e.evt.preventDefault();
-
-    const stage = stageRef.current;
-
-    if (!stage) return;
-
-    const oldScale = stage.scaleX();
-    const pointer = stage.getPointerPosition();
-
-    if (!pointer) return;
-
-    const mousePointTo = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    };
-
-    let direction = e.evt.deltaY > 0 ? 1 : -1;
-
-    if (e.evt.ctrlKey) {
-      direction = -direction;
-    }
-
-    const scaleBy = 1.01;
-
-    const newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
-
-    const newPos = {
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    };
-
-    stage.scale({ x: newScale, y: newScale });
-    stage.position(newPos);
-
-    store.updateStage(newScale, newPos.x, newPos.y);
-    stage.batchDraw();
+    const scaleBy = 1.1;
+    setZoom((prevZoom) => {
+      const newZoom =
+        e.evt.deltaY < 0 ? prevZoom * scaleBy : prevZoom / scaleBy;
+      return Math.max(0.25, Math.min(newZoom, 5));
+    });
   };
-
-  useEffect(() => {
-    const stage = stageRef.current;
-
-    if (!stage) return;
-
-    stage.scale({ x: store.scale, y: store.scale });
-    stage.position({ x: store.stageX, y: store.stageY });
-    stage.batchDraw();
-  }, [store]);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -338,12 +320,36 @@ const StickerEditor = observer(() => {
     transformer.getLayer()?.batchDraw();
   }, [selectedTemplateId, store.textGroups.length]);
 
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+
+    if (!container) return;
+
+    const updateScale = () => {
+      const availableWidth = container.clientWidth - 40;
+      const availableHeight = container.clientHeight - 40;
+
+      const scaleX = availableWidth / stageWidth;
+      const scaleY = availableHeight / stageHeight;
+
+      setFitScale(Math.max(0.01, Math.min(scaleX, scaleY, 1)));
+    };
+
+    const resizeObserver = new ResizeObserver(updateScale);
+
+    resizeObserver.observe(container);
+    updateScale();
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       style={{
         display: "flex",
         width: "100%",
-        height: "100vh",
+        height: "calc(100vh - 105px)",
         overflow: "hidden",
         fontFamily: "Arial, sans-serif",
       }}
@@ -470,6 +476,56 @@ const StickerEditor = observer(() => {
             ))}
           </button>
         )}
+        <button
+          type="button"
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "20px",
+            marginTop: "15px",
+            background: "#f2f2f2",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            textAlign: "center",
+            fontSize: "18px",
+          }}
+          onClick={() =>
+            setActivePanel(activePanel === "background" ? null : "background")
+          }
+        >
+          Background Color
+        </button>
+        {activePanel === "background" && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "5px",
+              marginTop: "15px",
+            }}
+          >
+            {backgroundColors.map((color) => (
+              <button
+                key={color}
+                type="button"
+                title={color}
+                onClick={() => store.setBackgroundColor(color)}
+                style={{
+                  width: "30px",
+                  height: "30px",
+                  backgroundColor: color,
+                  border:
+                    store.backgroundColor === color
+                      ? "3px solid #2563eb"
+                      : "1px solid #ccc",
+                  borderRadius: "50%",
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        )}
       </aside>
 
       <main
@@ -478,6 +534,8 @@ const StickerEditor = observer(() => {
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
+          height: "100%",
+          overflow: "hidden",
         }}
       >
         <header
@@ -492,10 +550,34 @@ const StickerEditor = observer(() => {
             boxSizing: "border-box",
           }}
         >
-          <h2 style={{ fontSize: "20px" }}>Custom Editor</h2>
+          <select
+            style={{
+              fontSize: "16px",
+              outline: "none",
+              padding: "5px",
+              width: "20px",
+              border: "none",
+            }}
+          >
+            <option>Logo Sticker (64*34 mm)</option>
+          </select>
+
+          <div style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
+            <button onClick={() => setZoom((z) => Math.max(0.25, z / 1.1))}>
+              −
+            </button>
+
+            <span>{Math.round(zoom * 100)}%</span>
+
+            <button onClick={() => setZoom((z) => Math.min(5, z * 1.1))}>
+              +
+            </button>
+
+            <button onClick={() => setZoom(1)}>Reset</button>
+          </div>
         </header>
 
-        {store.showText && selectedElement === "text" && (
+        {/* {store.showText && selectedElement === "text" && (
           <div
             style={{
               display: "flex",
@@ -516,274 +598,307 @@ const StickerEditor = observer(() => {
               ))}
             </select>
           </div>
-        )}
-
-        <Stage
-          width={Math.max(0, window.innerWidth - 220)}
-          height={Math.max(0, window.innerHeight - 65)}
-          ref={stageRef}
-          onWheel={handleWheel}
-          onMouseDown={handleCanvasOutsideClick}
-          onTouchStart={handleCanvasOutsideClick}
+        )} */}
+        <div
+          ref={containerRef}
+          style={{
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            overflow: "hidden",
+            background: "#f0f0f0",
+          }}
         >
-          <Layer>
-            {store.showText && (
-              <Text
-                ref={textRef}
-                x={store.text.x}
-                y={store.text.y}
-                width={store.text.width}
-                text={store.text.value}
-                fontSize={store.text.fontSize}
-                fontStyle={store.text.fontStyle}
-                fontFamily={store.text.fontFamily}
-                textDecoration={store.text.textDecoration}
-                fill="black"
-                visible={!store.isEditing}
-                draggable={!store.isEditing}
-                onClick={(e) => {
-                  e.cancelBubble = true;
-                  store.selectText(true);
-                  setSelectedElement("text");
-                }}
-                onDblClick={handleTextEdit}
-                onDragEnd={(e) => {
-                  store.updateTextPosition(e.target.x(), e.target.y());
-                }}
-                onTransformEnd={() => {
-                  const node = textRef.current;
-
-                  if (!node) return;
-
-                  const width = Math.max(30, node.width() * node.scaleX());
-
-                  node.scaleX(1);
-                  node.scaleY(1);
-
-                  store.updateTextTransform(node.x(), node.y(), width);
-                }}
-              />
-            )}
-
-            {store.showText &&
-              selectedElement === "text" &&
-              !store.isEditing && (
-                <DeleteCross
-                  x={store.text.x + store.text.width}
-                  y={store.text.y}
-                  onDelete={handleDeleteText}
+          <div
+            style={{
+              width: stageWidth * finalScale,
+              height: stageHeight * finalScale,
+              flexShrink: 0,
+            }}
+          >
+            <Stage
+              ref={stageRef}
+              width={stageWidth * finalScale}
+              height={stageHeight * finalScale}
+              scaleX={finalScale}
+              scaleY={finalScale}
+              onWheel={handleWheel}
+              onMouseDown={handleCanvasOutsideClick}
+              style={{ border: "1px solid black", background: "#fff" }}
+            >
+              <Layer>
+                <Rect
+                  x={0}
+                  y={0}
+                  width={stageWidth}
+                  height={stageHeight}
+                  fill={store.backgroundColor}
                 />
-              )}
-
-            {store.isEditing && editingNode && (
-              <Html>
-                <RichText
-                  key="rich-text-editor"
-                  textNode={editingNode}
-                  richHtml={store.text.richHtml}
-                  onCommit={handleTextCommit}
-                  onCancel={handleTextCancel}
-                />
-              </Html>
-            )}
-
-            {store.showText &&
-              selectedElement === "text" &&
-              store.isTextSelected &&
-              !store.isEditing && (
-                <Transformer
-                  ref={transformerRef}
-                  enabledAnchors={[
-                    "top-left",
-                    "top-right",
-                    "bottom-left",
-                    "bottom-right",
-                  ]}
-                />
-              )}
-
-            {store.imageObjectURL && (
-              <URLImage
-                ref={imageRef}
-                x={store.x}
-                y={store.y}
-                width={store.width}
-                url={store.imageObjectURL}
-                radius={100}
-                showCross={selectedElement === "image"}
-                onSelect={() => {
-                  setSelectedElement("image");
-                  store.selectText(false);
-                }}
-                onDelete={handleDeleteImage}
-                onDragEnd={(e) => {
-                  store.updateImageTransform(
-                    e.target.x(),
-                    e.target.y(),
-                    store.width,
-                  );
-                }}
-                onTransformEnd={() => {
-                  const node = imageRef.current;
-
-                  if (!node) return;
-                  const parent = node.getParent();
-
-                  const newWidth = Math.max(30, store.width * node.scaleX());
-
-                  node.scaleX(1);
-                  node.scaleY(1);
-
-                  store.updateImageTransform(
-                    parent.x() + node.x(),
-                    parent.y() + node.y(),
-                    newWidth,
-                  );
-                  node.position({ x: 0, y: 0 });
-                }}
-              />
-            )}
-
-            {selectedElement === "image" && (
-              <Transformer
-                ref={imageTransformerRef}
-                keepRatio={true}
-                enabledAnchors={[
-                  "top-left",
-                  "top-right",
-                  "bottom-left",
-                  "bottom-right",
-                ]}
-              />
-            )}
-
-            {store.textGroups.map((group) => (
-              <Group
-                key={group.id}
-                x={group.x}
-                y={group.y}
-                draggable={!editingTemplateTextId}
-                onClick={(e) => {
-                  e.cancelBubble = true;
-                  setSelectedTemplateId(group.id);
-                  setSelectedElement(null);
-                  store.selectText(false);
-                }}
-                onDragEnd={(e) => {
-                  store.updateTextGroupPosition(
-                    group.id,
-                    e.target.x(),
-                    e.target.y(),
-                  );
-                }}
-              >
-                {group.texts.map((text) => (
+                {store.showText && (
                   <Text
-                    key={text.id}
-                    x={text.x}
-                    y={text.y}
-                    text={text.value}
-                    fontSize={text.fontSize}
-                    fontStyle={text.fontStyle}
-                    fontFamily={text.fontFamily}
-                    fill={text.fill}
-                    onDelete={() => handleDeleteTemplateText()}
-                    onDblClick={(e) => {
+                    ref={textRef}
+                    x={store.text.x}
+                    y={store.text.y}
+                    width={store.text.width}
+                    text={store.text.value}
+                    fontSize={store.text.fontSize}
+                    fontStyle={store.text.fontStyle}
+                    fontFamily={store.text.fontFamily}
+                    textDecoration={store.text.textDecoration}
+                    fill="black"
+                    visible={!store.isEditing}
+                    draggable={!store.isEditing}
+                    onClick={(e) => {
                       e.cancelBubble = true;
-
-                      setSelectedTemplateId(group.id);
-
-                      setEditingTemplateTextId({
-                        groupId: group.id,
-                        textId: text.id,
-                        node: e.target,
-                      });
+                      store.selectText(true);
+                      setSelectedElement("text");
                     }}
-                    onDblTap={(e) => {
-                      e.cancelBubble = true;
-
-                      setEditingTemplateTextId({
-                        groupId: group.id,
-                        textId: text.id,
-                        node: e.target,
-                      });
+                    onDblClick={handleTextEdit}
+                    onDragEnd={(e) => {
+                      store.updateTextPosition(e.target.x(), e.target.y());
                     }}
-                    visible={
-                      !(
-                        editingTemplateTextId?.groupId === group.id &&
-                        editingTemplateTextId?.textId === text.id
-                      )
-                    }
+                    onTransformEnd={() => {
+                      const node = textRef.current;
+
+                      if (!node) return;
+
+                      const width = Math.max(30, node.width() * node.scaleX());
+
+                      node.scaleX(1);
+                      node.scaleY(1);
+
+                      store.updateTextTransform(node.x(), node.y(), width);
+                    }}
                   />
-                ))}
-              </Group>
-            ))}
-            <Transformer ref={templateTransformerRef} keepRatio />
-            {editingTemplateTextId &&
-              (() => {
-                const { groupId, textId, node } = editingTemplateTextId;
+                )}
 
-                const group = store.textGroups.find((g) => g.id === groupId);
+                {store.showText &&
+                  selectedElement === "text" &&
+                  !store.isEditing && (
+                    <DeleteCross
+                      x={store.text.x + store.text.width}
+                      y={store.text.y}
+                      onDelete={handleDeleteText}
+                    />
+                  )}
 
-                const text = group?.texts.find((t) => t.id === textId);
-
-                if (!text) return null;
-
-                const position = node.getAbsolutePosition();
-
-                const stage = node.getStage();
-                const stagePosition = stage.getAbsolutePosition();
-                const stageScale = stage.scaleX();
-
-                const x = (position.x - stagePosition.x) / stageScale;
-                const y = (position.y - stagePosition.y) / stageScale;
-
-                return (
+                {store.isEditing && editingNode && (
                   <Html>
-                    <textarea
-                      autoFocus
-                      defaultValue={text.value}
-                      style={{
-                        position: "absolute",
-                        left: x,
-                        top: y,
-                        fontFamily: text.fontFamily,
-                        fontSize:
-                          (text.fontSize * node.getAbsoluteScale().x) /
-                          stageScale,
-                        fontStyle: text.fontStyle.includes("italic")
-                          ? "italic"
-                          : "normal",
-                        fontWeight: text.fontStyle.includes("bold")
-                          ? "bold"
-                          : "normal",
-                        color: text.fill,
-                        background: "transparent",
-                        border: "1px dashed #888",
-                        outline: "none",
-                        resize: "none",
-                        minWidth: "150px",
-                        minHeight: "50px",
-                        padding: 0,
-                        margin: 0,
-                        overflow: "hidden",
-                      }}
-                      onChange={(e) => {
-                        store.updateTemplateText(
-                          groupId,
-                          textId,
-                          e.target.value,
-                        );
-                      }}
-                      onBlur={() => {
-                        setEditingTemplateTextId(null);
-                      }}
+                    <RichText
+                      key="rich-text-editor"
+                      textNode={editingNode}
+                      richHtml={store.text.richHtml}
+                      onCommit={handleTextCommit}
+                      onCancel={handleTextCancel}
                     />
                   </Html>
-                );
-              })()}
-          </Layer>
-        </Stage>
+                )}
+
+                {store.showText &&
+                  selectedElement === "text" &&
+                  store.isTextSelected &&
+                  !store.isEditing && (
+                    <Transformer
+                      ref={transformerRef}
+                      enabledAnchors={[
+                        "top-left",
+                        "top-right",
+                        "bottom-left",
+                        "bottom-right",
+                      ]}
+                    />
+                  )}
+
+                {store.imageObjectURL && (
+                  <URLImage
+                    ref={imageRef}
+                    x={store.x}
+                    y={store.y}
+                    width={store.width}
+                    url={store.imageObjectURL}
+                    radius={100}
+                    showCross={selectedElement === "image"}
+                    onSelect={() => {
+                      setSelectedElement("image");
+                      store.selectText(false);
+                    }}
+                    onDelete={handleDeleteImage}
+                    onDragEnd={(e) => {
+                      store.updateImageTransform(
+                        e.target.x(),
+                        e.target.y(),
+                        store.width,
+                      );
+                    }}
+                    onTransformEnd={() => {
+                      const node = imageRef.current;
+
+                      if (!node) return;
+                      const parent = node.getParent();
+
+                      const newWidth = Math.max(
+                        30,
+                        store.width * node.scaleX(),
+                      );
+
+                      node.scaleX(1);
+                      node.scaleY(1);
+
+                      store.updateImageTransform(
+                        parent.x() + node.x(),
+                        parent.y() + node.y(),
+                        newWidth,
+                      );
+                      node.position({ x: 0, y: 0 });
+                    }}
+                  />
+                )}
+
+                {selectedElement === "image" && (
+                  <Transformer
+                    ref={imageTransformerRef}
+                    keepRatio={true}
+                    enabledAnchors={[
+                      "top-left",
+                      "top-right",
+                      "bottom-left",
+                      "bottom-right",
+                    ]}
+                  />
+                )}
+
+                {store.textGroups.map((group) => (
+                  <Group
+                    key={group.id}
+                    x={group.x}
+                    y={group.y}
+                    draggable={!editingTemplateTextId}
+                    onClick={(e) => {
+                      e.cancelBubble = true;
+                      setSelectedTemplateId(group.id);
+                      setSelectedElement(null);
+                      store.selectText(false);
+                    }}
+                    onDragEnd={(e) => {
+                      store.updateTextGroupPosition(
+                        group.id,
+                        e.target.x(),
+                        e.target.y(),
+                      );
+                    }}
+                  >
+                    {group.texts.map((text) => (
+                      <Text
+                        key={text.id}
+                        x={text.x}
+                        y={text.y}
+                        text={text.value}
+                        fontSize={text.fontSize}
+                        fontStyle={text.fontStyle}
+                        fontFamily={text.fontFamily}
+                        fill={text.fill}
+                        onDelete={() => handleDeleteTemplateText()}
+                        onDblClick={(e) => {
+                          e.cancelBubble = true;
+
+                          setSelectedTemplateId(group.id);
+
+                          setEditingTemplateTextId({
+                            groupId: group.id,
+                            textId: text.id,
+                            node: e.target,
+                          });
+                        }}
+                        onDblTap={(e) => {
+                          e.cancelBubble = true;
+
+                          setEditingTemplateTextId({
+                            groupId: group.id,
+                            textId: text.id,
+                            node: e.target,
+                          });
+                        }}
+                        visible={
+                          !(
+                            editingTemplateTextId?.groupId === group.id &&
+                            editingTemplateTextId?.textId === text.id
+                          )
+                        }
+                      />
+                    ))}
+                  </Group>
+                ))}
+                <Transformer ref={templateTransformerRef} keepRatio />
+                {editingTemplateTextId &&
+                  (() => {
+                    const { groupId, textId, node } = editingTemplateTextId;
+
+                    const group = store.textGroups.find(
+                      (g) => g.id === groupId,
+                    );
+
+                    const text = group?.texts.find((t) => t.id === textId);
+
+                    if (!text) return null;
+
+                    const position = node.getAbsolutePosition();
+
+                    const stage = node.getStage();
+                    const stagePosition = stage.getAbsolutePosition();
+                    const stageScale = stage.scaleX();
+
+                    const x = (position.x - stagePosition.x) / stageScale;
+                    const y = (position.y - stagePosition.y) / stageScale;
+
+                    return (
+                      <Html>
+                        <textarea
+                          autoFocus
+                          defaultValue={text.value}
+                          style={{
+                            position: "absolute",
+                            left: x,
+                            top: y,
+                            fontFamily: text.fontFamily,
+                            fontSize:
+                              (text.fontSize * node.getAbsoluteScale().x) /
+                              stageScale,
+                            fontStyle: text.fontStyle.includes("italic")
+                              ? "italic"
+                              : "normal",
+                            fontWeight: text.fontStyle.includes("bold")
+                              ? "bold"
+                              : "normal",
+                            color: text.fill,
+                            background: "transparent",
+                            border: "1px dashed #888",
+                            outline: "none",
+                            resize: "none",
+                            minWidth: "150px",
+                            minHeight: "50px",
+                            padding: 0,
+                            margin: 0,
+                            overflow: "hidden",
+                          }}
+                          onChange={(e) => {
+                            store.updateTemplateText(
+                              groupId,
+                              textId,
+                              e.target.value,
+                            );
+                          }}
+                          onBlur={() => {
+                            setEditingTemplateTextId(null);
+                          }}
+                        />
+                      </Html>
+                    );
+                  })()}
+              </Layer>
+            </Stage>
+          </div>
+        </div>
       </main>
     </div>
   );

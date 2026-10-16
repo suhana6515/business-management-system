@@ -8,6 +8,19 @@ const commands = [
   { command: "formatBlock", value: "h2", label: "H2" },
 ];
 
+const fontColors = [
+  "#000000",
+  "#FFFFFF",
+  "#FF0000",
+  "#FF9800",
+  "#FFEB3B",
+  "#4CAF50",
+  "#2196F3",
+  "#9C27B0",
+  "#E91E63",
+  "#795548",
+];
+
 const headingSizes = {
   h1: 60,
   h2: 32,
@@ -17,6 +30,8 @@ function RichText({ textNode, richHtml = "", onCommit }) {
   const rootRef = useRef(null);
   const editorRef = useRef(null);
   const committedRef = useRef(false);
+  const savedSelectionRef = useRef(null);
+  const selectedColorRef = useRef(textNode?.fill() ?? "#000000");
 
   const [style, setStyle] = useState({
     fontSize: textNode?.fontSize() ?? 24,
@@ -24,10 +39,16 @@ function RichText({ textNode, richHtml = "", onCommit }) {
     textDecoration: textNode?.textDecoration() ?? "",
   });
 
+  const [showColors, setShowColors] = useState(false);
+  const [selectedColor, setSelectedColor] = useState(
+    textNode?.fill() ?? "#000000",
+  );
+
   useEffect(() => {
     if (!textNode || !editorRef.current) return;
 
     committedRef.current = false;
+    selectedColorRef.current = textNode.fill();
 
     const editor = editorRef.current;
     editor.innerHTML = richHtml || textNode.text();
@@ -41,7 +62,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     selection?.removeAllRanges();
     selection?.addRange(range);
-  }, [textNode]);
+  }, [richHtml, textNode]);
 
   const handleCommit = useCallback(() => {
     if (committedRef.current || !editorRef.current) return;
@@ -50,7 +71,14 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     const editor = editorRef.current;
 
-    onCommit(editor.innerText, style, editor.innerHTML);
+    onCommit(
+      editor.innerText,
+      {
+        ...style,
+        fontColor: selectedColorRef.current,
+      },
+      editor.innerHTML,
+    );
   }, [onCommit, style]);
 
   useEffect(() => {
@@ -68,6 +96,36 @@ function RichText({ textNode, richHtml = "", onCommit }) {
       document.removeEventListener("touchstart", handleOutsideClick);
     };
   }, [handleCommit]);
+
+  const saveSelection = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+  };
+
+  const applyTextColor = (color) => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+
+    if (!editor || !selection || !savedSelectionRef.current) return;
+    editor.focus();
+
+    selection.removeAllRanges();
+    selection.addRange(savedSelectionRef.current);
+
+    document.execCommand("foreColor", false, color);
+
+    saveSelection();
+
+    selectedColorRef.current = color;
+    setSelectedColor(color);
+    setStyle((current) => ({
+      ...current,
+      fontColor: color,
+    }));
+    setShowColors(false);
+  };
 
   const executeCommand = (command, commandValue) => {
     const editor = editorRef.current;
@@ -177,6 +235,74 @@ function RichText({ textNode, richHtml = "", onCommit }) {
             {label}
           </button>
         ))}
+        <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              saveSelection();
+              setShowColors(!showColors);
+            }}
+            style={{
+              padding: "5px 10px",
+              cursor: "pointer",
+              background: "white",
+              border: "1px solid #ddd",
+            }}
+          >
+            <span
+              style={{
+                color: selectedColor,
+
+                fontSize: "18px",
+              }}
+            >
+              A
+            </span>
+          </button>
+
+          {showColors && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: "5px",
+                padding: "10px",
+                background: "white",
+                border: "1px solid #ddd",
+                borderRadius: "8px",
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                gap: "8px",
+                width: "180px",
+                zIndex: 2000,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+              }}
+            >
+              {fontColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  title={color}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => applyTextColor(color)}
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    borderRadius: "50%",
+                    backgroundColor: color,
+                    border:
+                      selectedColor === color
+                        ? "2px solid #333"
+                        : "1px solid #ddd",
+                    cursor: "pointer",
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div
@@ -184,6 +310,9 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         contentEditable
         suppressContentEditableWarning
         onKeyDown={handleKeyDown}
+        onMouseUp={saveSelection}
+        onKeyUp={saveSelection}
+        onBlur={handleCommit}
         style={{
           minHeight: Math.max(40, textNode.height()),
           width: "100%",

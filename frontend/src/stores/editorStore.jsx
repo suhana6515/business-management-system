@@ -10,6 +10,7 @@ const TextModel = types.model("TextModel", {
   fontStyle: types.optional(types.string, "normal"),
   fontFamily: types.optional(types.string, "Arial"),
   textDecoration: types.optional(types.string, ""),
+  fill: types.optional(types.string, "#000000"),
 });
 
 const TemplateTextModel = types.model("TemplateText", {
@@ -33,6 +34,7 @@ const TextGroupModel = types.model("TextGroup", {
 const EditorStore = types
   .model("EditorStore", {
     text: types.optional(TextModel, {}),
+    backgroundColor: types.optional(types.string, "#ffffff"),
     textGroups: types.optional(types.array(TextGroupModel), []),
     showText: types.optional(types.boolean, false),
     isEditing: types.optional(types.boolean, false),
@@ -46,6 +48,10 @@ const EditorStore = types
     stageY: types.optional(types.number, 0),
   })
   .actions((self) => ({
+    setBackgroundColor(color) {
+      self.backgroundColor = color;
+    },
+
     updateTemplateText(groupId, textId, newValue) {
       const group = self.textGroups.find((group) => group.id === groupId);
 
@@ -127,6 +133,10 @@ const EditorStore = types
 
         if (typeof style.textDecoration === "string") {
           self.text.textDecoration = style.textDecoration;
+        }
+
+        if (typeof style.fontColor === "string") {
+          self.text.fill = style.fontColor;
         }
       }
 
