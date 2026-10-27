@@ -31,6 +31,16 @@ const TextGroupModel = types.model("TextGroup", {
   texts: types.array(TemplateTextModel),
 });
 
+const ShapeModel = types.model("ShapeModel", {
+  id: types.identifier,
+  x: types.number,
+  y: types.number,
+  width: types.number,
+  height: types.number,
+  fill: types.string,
+  rotation: types.optional(types.number, 0),
+});
+
 const EditorStore = types
   .model("EditorStore", {
     text: types.optional(TextModel, {}),
@@ -46,6 +56,7 @@ const EditorStore = types
     scale: types.optional(types.number, 1),
     stageX: types.optional(types.number, 0),
     stageY: types.optional(types.number, 0),
+    shapes: types.optional(types.array(ShapeModel), []),
   })
   .actions((self) => ({
     setBackgroundColor(color) {
@@ -62,6 +73,34 @@ const EditorStore = types
       if (!text) return;
 
       text.value = newValue;
+    },
+
+    addShape(type) {
+      self.shapes.push({
+        id: crypto.randomUUID(),
+        type,
+        x: 150,
+        y: 150,
+        width: 100,
+        height: 100,
+        fill: "#000000",
+        rotation: 0,
+      });
+    },
+    updateShape(id, updates) {
+      const shape = self.shapes.find((s) => s.id === id);
+
+      if (shape) {
+        Object.assign(shape, updates);
+      }
+    },
+
+    deleteShape(id) {
+      const shape = self.shapes.find((s) => s.id === id);
+
+      if (shape) {
+        self.shapes.remove(shape);
+      }
     },
 
     addTextTemplate(template) {
@@ -100,7 +139,7 @@ const EditorStore = types
     },
 
     setFontStyle(fontStyle) {
-      self.text.fontFamily = fontStyle;
+      self.text.fontStyle = fontStyle;
     },
 
     showTextElement() {
@@ -129,6 +168,10 @@ const EditorStore = types
 
         if (typeof style.fontStyle === "string") {
           self.text.fontStyle = style.fontStyle;
+        }
+
+        if (typeof style.fontFamily === "string") {
+          self.text.fontFamily = style.fontFamily;
         }
 
         if (typeof style.textDecoration === "string") {

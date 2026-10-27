@@ -8,22 +8,15 @@ import {
   Group,
   Circle,
   Rect,
+  Line,
 } from "react-konva";
 import { Html } from "react-konva-utils";
 import useImage from "use-image";
 import { observer } from "mobx-react-lite";
 import RichText from "./RichText";
 import { editorStore } from "../../stores/editorStore";
+import { nametagTemplate } from "./NametagTemplate";
 
-// const fontFamilies = [
-//   "Arial",
-//   "Georgia",
-//   "Times New Roman",
-//   "Verdana",
-//   "Roboto",
-//   "Poppins",
-//   "Montserrat",
-// ];
 const backgroundColors = [
   "#ffffff",
   "#000000",
@@ -166,8 +159,6 @@ const URLImage = forwardRef(
 );
 
 const MM_TO_PX = 300 / 25.4;
-const stageWidth = 64 * MM_TO_PX;
-const stageHeight = 34 * MM_TO_PX;
 
 const StickerEditor = observer(() => {
   const store = editorStore;
@@ -179,6 +170,8 @@ const StickerEditor = observer(() => {
   const [editingTemplateTextId, setEditingTemplateTextId] = useState(null);
   const [fitScale, setFitScale] = useState(1);
   const [zoom, setZoom] = useState(1);
+  const [templateElements, setTemplateElements] = useState([]);
+  const [stickerType, setStickerType] = useState("logo-sticker");
   const finalScale = fitScale * zoom;
 
   const textRef = useRef(null);
@@ -189,6 +182,46 @@ const StickerEditor = observer(() => {
   const templateTransformerRef = useRef(null);
   const containerRef = useRef(null);
   const canvasContainerRef = useRef(null);
+
+  const dimensions = (() => {
+    switch (stickerType) {
+      case "nametag":
+        return {
+          width: 100,
+          height: 44.15,
+        };
+
+      case "logo-sticker":
+      default:
+        return {
+          width: 64,
+          height: 34,
+        };
+    }
+  })();
+
+  const stageWidth = dimensions.width * MM_TO_PX;
+  const stageHeight = dimensions.height * MM_TO_PX;
+
+  const handleTemplateSelect = (value) => {
+    setStickerType(value);
+
+    switch (value) {
+      case "logo-sticker":
+        setTemplateElements([]);
+        store.setBackgroundColor("#ffffff");
+        break;
+
+      case "nametag":
+        setTemplateElements(structuredClone(nametagTemplate.elements));
+        store.setBackgroundColor(nametagTemplate.backgroundColor);
+        break;
+
+      default:
+        setTemplateElements([]);
+        break;
+    }
+  };
 
   const handleUpload = (event) => {
     const file = event.target.files?.[0];
@@ -247,8 +280,10 @@ const StickerEditor = observer(() => {
   };
 
   const handleDeleteTemplateText = () => {
+    if (!selectedTemplateId) return;
+
+    store.deleteTemplateText(selectedTemplateId);
     setSelectedTemplateId(null);
-    store.deleteTemplateText();
   };
 
   const handleCanvasOutsideClick = (e) => {
@@ -257,6 +292,7 @@ const StickerEditor = observer(() => {
     if (e.target === e.target.getStage()) {
       store.selectText(false);
       setSelectedElement(null);
+      setSelectedTemplateId(null);
     }
   };
 
@@ -426,56 +462,6 @@ const StickerEditor = observer(() => {
         >
           Font Combinations
         </button>
-        {activePanel === "fontCombinations" && (
-          <button
-            type="button"
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "20px",
-              marginTop: "15px",
-              background: "#f2f2f2",
-              border: "none",
-              borderRadius: "6px",
-              cursor: "pointer",
-              textAlign: "center",
-              fontSize: "18px",
-            }}
-          >
-            {fontTemplates.map((template) => (
-              <button
-                key={template.id}
-                onClick={() => {
-                  store.addTextTemplate(template);
-                }}
-                style={{
-                  padding: "15px",
-                  border: "1px solid #ddd",
-                  borderRadius: "8px",
-                  background: "#f9f9f9",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <strong>{template.name}</strong>
-
-                {template.texts.map((text, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      fontFamily: text.fontFamily,
-                      fontSize: Math.min(text.fontSize, 24),
-                      fontStyle: text.fontStyle,
-                      color: text.fill,
-                    }}
-                  >
-                    {text.value}
-                  </div>
-                ))}
-              </button>
-            ))}
-          </button>
-        )}
         <button
           type="button"
           style={{
@@ -496,37 +482,89 @@ const StickerEditor = observer(() => {
         >
           Background Color
         </button>
-        {activePanel === "background" && (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "5px",
-              marginTop: "15px",
-            }}
-          >
-            {backgroundColors.map((color) => (
-              <button
-                key={color}
-                type="button"
-                title={color}
-                onClick={() => store.setBackgroundColor(color)}
-                style={{
-                  width: "30px",
-                  height: "30px",
-                  backgroundColor: color,
-                  border:
-                    store.backgroundColor === color
-                      ? "3px solid #2563eb"
-                      : "1px solid #ccc",
-                  borderRadius: "50%",
-                  cursor: "pointer",
-                }}
-              />
-            ))}
-          </div>
-        )}
       </aside>
+
+      {activePanel && (
+        <div
+          style={{
+            width: "250px",
+            minWidth: "250px",
+            padding: "20px",
+            background: "#fff",
+            borderRight: "1px solid #ddd",
+            boxSizing: "border-box",
+            overflowY: "auto",
+          }}
+        >
+          {activePanel === "fontCombinations" && (
+            <div>
+              {fontTemplates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => {
+                    store.addTextTemplate(template);
+                  }}
+                  style={{
+                    padding: "15px",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    background: "#f9f9f9",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <strong>{template.name}</strong>
+
+                  {template.texts.map((text, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        fontFamily: text.fontFamily,
+                        fontSize: Math.min(text.fontSize, 24),
+                        fontStyle: text.fontStyle,
+                        color: text.fill,
+                      }}
+                    >
+                      {text.value}
+                    </div>
+                  ))}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activePanel === "background" && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "5px",
+                marginTop: "15px",
+              }}
+            >
+              {backgroundColors.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  title={color}
+                  onClick={() => store.setBackgroundColor(color)}
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    backgroundColor: color,
+                    border:
+                      store.backgroundColor === color
+                        ? "3px solid #2563eb"
+                        : "1px solid #ccc",
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <main
         style={{
@@ -554,17 +592,22 @@ const StickerEditor = observer(() => {
             style={{
               fontSize: "16px",
               outline: "none",
-              padding: "5px",
-              width: "20px",
+              padding: "5px 8px",
+              width: "auto",
+              minWidth: "220px",
               border: "none",
+              background: "#fff",
+              cursor: "pointer",
             }}
+            onChange={(e) => handleTemplateSelect(e.target.value)}
           >
-            <option>Logo Sticker (64*34 mm)</option>
+            <option value="logo-sticker">Logo Sticker (64 * 34 mm)</option>
+            <option value="nametag">Name Tags (100 *44.15 mm)</option>
           </select>
 
           <div style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
             <button onClick={() => setZoom((z) => Math.max(0.25, z / 1.1))}>
-              −
+              -
             </button>
 
             <span>{Math.round(zoom * 100)}%</span>
@@ -577,28 +620,6 @@ const StickerEditor = observer(() => {
           </div>
         </header>
 
-        {/* {store.showText && selectedElement === "text" && (
-          <div
-            style={{
-              display: "flex",
-              marginLeft: "auto",
-              gap: "10px",
-              align: "left",
-              padding: "10px",
-            }}
-          >
-            <select
-              value={store.text.fontFamily}
-              onChange={(e) => store.setFontFamily(e.target.value)}
-            >
-              {fontFamilies.map((font) => (
-                <option key={font} value={font}>
-                  {font}
-                </option>
-              ))}
-            </select>
-          </div>
-        )} */}
         <div
           ref={containerRef}
           style={{
@@ -625,7 +646,9 @@ const StickerEditor = observer(() => {
               scaleY={finalScale}
               onWheel={handleWheel}
               onMouseDown={handleCanvasOutsideClick}
-              style={{ border: "1px solid black", background: "#fff" }}
+              style={{
+                background: "#fff",
+              }}
             >
               <Layer>
                 <Rect
@@ -634,7 +657,22 @@ const StickerEditor = observer(() => {
                   width={stageWidth}
                   height={stageHeight}
                   fill={store.backgroundColor}
+                  onMouseDown={() => {
+                    if (store.isEditing) return;
+
+                    store.selectText(false);
+                    setSelectedElement(null);
+                    setSelectedTemplateId(null);
+                  }}
+                  onTouchStart={() => {
+                    if (store.isEditing) return;
+
+                    store.selectText(false);
+                    setSelectedElement(null);
+                    setSelectedTemplateId(null);
+                  }}
                 />
+
                 {store.showText && (
                   <Text
                     ref={textRef}
@@ -646,7 +684,7 @@ const StickerEditor = observer(() => {
                     fontStyle={store.text.fontStyle}
                     fontFamily={store.text.fontFamily}
                     textDecoration={store.text.textDecoration}
-                    fill="black"
+                    fill={store.text.fill}
                     visible={!store.isEditing}
                     draggable={!store.isEditing}
                     onClick={(e) => {
@@ -673,16 +711,6 @@ const StickerEditor = observer(() => {
                   />
                 )}
 
-                {store.showText &&
-                  selectedElement === "text" &&
-                  !store.isEditing && (
-                    <DeleteCross
-                      x={store.text.x + store.text.width}
-                      y={store.text.y}
-                      onDelete={handleDeleteText}
-                    />
-                  )}
-
                 {store.isEditing && editingNode && (
                   <Html>
                     <RichText
@@ -707,6 +735,15 @@ const StickerEditor = observer(() => {
                         "bottom-left",
                         "bottom-right",
                       ]}
+                    />
+                  )}
+                {store.showText &&
+                  selectedElement === "text" &&
+                  !store.isEditing && (
+                    <DeleteCross
+                      x={store.text.x + store.text.width}
+                      y={store.text.y}
+                      onDelete={handleDeleteText}
                     />
                   )}
 
@@ -771,6 +808,7 @@ const StickerEditor = observer(() => {
                 {store.textGroups.map((group) => (
                   <Group
                     key={group.id}
+                    id={String(group.id)}
                     x={group.x}
                     y={group.y}
                     draggable={!editingTemplateTextId}
@@ -827,6 +865,13 @@ const StickerEditor = observer(() => {
                         }
                       />
                     ))}
+                    {selectedTemplateId === group.id && (
+                      <DeleteCross
+                        x={150}
+                        y={0}
+                        onDelete={handleDeleteTemplateText}
+                      />
+                    )}
                   </Group>
                 ))}
                 <Transformer ref={templateTransformerRef} keepRatio />
@@ -895,6 +940,24 @@ const StickerEditor = observer(() => {
                       </Html>
                     );
                   })()}
+
+                {templateElements.map((element) => {
+                  if (element.type === "text") {
+                    return (
+                      <Text
+                        key={element.id}
+                        {...element}
+                        draggable
+                        onDblClick={handleTextEdit}
+                      />
+                    );
+                  }
+
+                  if (element.type === "line") {
+                    return <Line key={element.id} {...element} draggable />;
+                  }
+                  return null;
+                })}
               </Layer>
             </Stage>
           </div>

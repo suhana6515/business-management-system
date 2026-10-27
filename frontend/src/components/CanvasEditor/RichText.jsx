@@ -8,6 +8,16 @@ const commands = [
   { command: "formatBlock", value: "h2", label: "H2" },
 ];
 
+const fontFamilies = [
+  "Arial",
+  "Georgia",
+  "Times New Roman",
+  "Verdana",
+  "Roboto",
+  "Poppins",
+  "Montserrat",
+];
+
 const fontColors = [
   "#000000",
   "#FFFFFF",
@@ -36,6 +46,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
   const [style, setStyle] = useState({
     fontSize: textNode?.fontSize() ?? 24,
     fontStyle: textNode?.fontStyle() ?? "normal",
+    fontFamily: textNode?.fontFamily() ?? "Arial",
     textDecoration: textNode?.textDecoration() ?? "",
   });
 
@@ -48,7 +59,17 @@ function RichText({ textNode, richHtml = "", onCommit }) {
     if (!textNode || !editorRef.current) return;
 
     committedRef.current = false;
-    selectedColorRef.current = textNode.fill();
+
+    const color = textNode.fill() ?? "#000000";
+    selectedColorRef.current = color;
+    setSelectedColor(color);
+
+    setStyle({
+      fontSize: textNode.fontSize() ?? 24,
+      fontStyle: textNode.fontStyle() ?? "normal",
+      fontFamily: textNode.fontFamily() ?? "Arial",
+      textDecoration: textNode.textDecoration() ?? "",
+    });
 
     const editor = editorRef.current;
     editor.innerHTML = richHtml || textNode.text();
@@ -62,6 +83,8 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     selection?.removeAllRanges();
     selection?.addRange(range);
+
+    savedSelectionRef.current = range.cloneRange();
   }, [richHtml, textNode]);
 
   const handleCommit = useCallback(() => {
@@ -99,20 +122,68 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
   const saveSelection = () => {
     const selection = window.getSelection();
+
     if (!selection || selection.rangeCount === 0) return;
 
-    savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+    const editor = editorRef.current;
+    const range = selection.getRangeAt(0);
+
+    if (editor && editor.contains(range.commonAncestorContainer)) {
+      savedSelectionRef.current = range.cloneRange();
+    }
   };
 
-  const applyTextColor = (color) => {
+  const restoreSelection = () => {
     const editor = editorRef.current;
     const selection = window.getSelection();
 
     if (!editor || !selection || !savedSelectionRef.current) return;
-    editor.focus();
 
+    editor.focus();
     selection.removeAllRanges();
     selection.addRange(savedSelectionRef.current);
+  };
+
+  const applyFontFamily = (fontFamily) => {
+    const editor = editorRef.current;
+
+    if (!editor) return;
+
+    editor.focus();
+
+    // Apply the selected font to all the text being edited.
+    const selection = window.getSelection();
+    const range = document.createRange();
+
+    range.selectNodeContents(editor);
+
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    document.execCommand("fontName", false, fontFamily);
+
+    setStyle((current) => ({
+      ...current,
+      fontFamily,
+    }));
+
+    // Leave the cursor at the end so typing won't replace the text.
+    const endRange = document.createRange();
+    endRange.selectNodeContents(editor);
+    endRange.collapse(false);
+
+    selection?.removeAllRanges();
+    selection?.addRange(endRange);
+
+    savedSelectionRef.current = endRange.cloneRange();
+  };
+
+  const applyTextColor = (color) => {
+    const editor = editorRef.current;
+
+    if (!editor) return;
+
+    restoreSelection();
 
     document.execCommand("foreColor", false, color);
 
@@ -120,10 +191,12 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     selectedColorRef.current = color;
     setSelectedColor(color);
+
     setStyle((current) => ({
       ...current,
       fontColor: color,
     }));
+
     setShowColors(false);
   };
 
@@ -132,7 +205,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     if (!editor) return;
 
-    editor.focus();
+    restoreSelection();
 
     if (command === "formatBlock") {
       document.execCommand("formatBlock", false, commandValue);
@@ -142,6 +215,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         fontSize: headingSizes[commandValue],
       }));
 
+      saveSelection();
       return;
     }
 
@@ -174,16 +248,14 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         textDecoration: active ? "underline" : "",
       }));
     }
+
+    saveSelection();
   };
 
   const handleKeyDown = (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
-
-      if (!committedRef.current) {
-        handleCommit();
-      }
-
+      handleCommit();
       return;
     }
 
@@ -215,45 +287,75 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         style={{
           display: "flex",
           flexWrap: "wrap",
+          alignItems: "center",
           gap: "4px",
           marginBottom: "6px",
           padding: "6px",
+          background: "white",
         }}
       >
         {commands.map(({ command, value, label }) => (
           <button
             key={`${command}-${value ?? "default"}`}
             type="button"
-            onMouseDown={(event) => event.preventDefault()}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              saveSelection();
+            }}
             onClick={() => executeCommand(command, value)}
             style={{
               padding: "5px 10px",
               cursor: "pointer",
               background: "white",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
             }}
           >
             {label}
           </button>
         ))}
+
+        <select
+          aria-label="Font family"
+          title="Font family"
+          value={style.fontFamily}
+          onMouseDown={saveSelection}
+          onChange={(event) => applyFontFamily(event.target.value)}
+          style={{
+            maxWidth: "150px",
+            padding: "6px",
+            background: "white",
+            border: "1px solid #ddd",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          {fontFamilies.map((font) => (
+            <option key={font} value={font}>
+              {font}
+            </option>
+          ))}
+        </select>
+
         <div style={{ position: "relative" }}>
           <button
             type="button"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
+            onMouseDown={(event) => {
+              event.preventDefault();
               saveSelection();
-              setShowColors(!showColors);
             }}
+            onClick={() => setShowColors((current) => !current)}
             style={{
               padding: "5px 10px",
               cursor: "pointer",
               background: "white",
               border: "1px solid #ddd",
+              borderRadius: "4px",
             }}
           >
             <span
               style={{
                 color: selectedColor,
-
                 fontSize: "18px",
               }}
             >
@@ -285,7 +387,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
                   key={color}
                   type="button"
                   title={color}
-                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => applyTextColor(color)}
                   style={{
                     width: "26px",
@@ -312,16 +414,19 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         onKeyDown={handleKeyDown}
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
-        onBlur={handleCommit}
         style={{
           minHeight: Math.max(40, textNode.height()),
           width: "100%",
           padding: "8px",
+          boxSizing: "border-box",
           background: "white",
           color: textNode.fill(),
           outline: "none",
           fontSize: style.fontSize,
-          fontFamily: textNode.fontFamily(),
+          fontFamily: style.fontFamily,
+          fontStyle: style.fontStyle.includes("italic") ? "italic" : "normal",
+          fontWeight: style.fontStyle.includes("bold") ? "bold" : "normal",
+          textDecoration: style.textDecoration,
           lineHeight: textNode.lineHeight() || "normal",
           whiteSpace: "pre-wrap",
           overflowWrap: "break-word",
