@@ -33,11 +33,12 @@ const TextGroupModel = types.model("TextGroup", {
 
 const ShapeModel = types.model("ShapeModel", {
   id: types.identifier,
+  type: types.enumeration(["rect", "circle"]),
   x: types.number,
   y: types.number,
-  width: types.number,
-  height: types.number,
   fill: types.string,
+  scaleX: types.optional(types.number, 1),
+  scaleY: types.optional(types.number, 1),
   rotation: types.optional(types.number, 0),
 });
 
@@ -71,6 +72,9 @@ const EditorStore = types
     scale: types.optional(types.number, 1),
     stageX: types.optional(types.number, 0),
     stageY: types.optional(types.number, 0),
+    selectedSidebarShape: types.maybeNull(
+      types.enumeration(["rect", "circle"]),
+    ),
     shapes: types.optional(types.array(ShapeModel), []),
     activeTemplate: types.optional(
       types.enumeration("TemplateType", ["logo-sticker", "nametag"]),
@@ -79,7 +83,35 @@ const EditorStore = types
     logoStickerState: types.optional(TemplateStateModel, {}),
     nametagState: types.optional(TemplateStateModel, {}),
   })
+
   .actions((self) => ({
+    selectSidebarShape(type) {
+      self.selectedSidebarShape = type;
+    },
+
+    addShape(x, y) {
+      if (!self.selectedSidebarShape) return;
+      self.shapes.push({
+        id: Math.random().toString(36).substr(2, 9),
+        type: self.selectedSidebarShape,
+        x,
+        y,
+        fill: self.selectedSidebarShape === "rect" ? "#000000" : "#000000",
+      });
+      self.selectedSidebarShape = null;
+    },
+    updateShapeTransform(id, x, y, scaleX, scaleY, rotation) {
+      const shape = self.shapes.find((s) => s.id === id);
+
+      if (shape) {
+        shape.x = x;
+        shape.y = y;
+        shape.scaleX = scaleX;
+        shape.scaleY = scaleY;
+        shape.rotation = rotation;
+      }
+    },
+
     saveCurrentTemplate() {
       const target =
         self.activeTemplate === "nametag"
@@ -109,13 +141,10 @@ const EditorStore = types
 
       if (template === self.activeTemplate) return;
 
-      // Save the template being left.
       self.saveCurrentTemplate();
 
-      // Remember the newly selected template.
       self.activeTemplate = template;
 
-      // Restore the selected template's data.
       const source =
         template === "nametag" ? self.nametagState : self.logoStickerState;
 
@@ -152,35 +181,6 @@ const EditorStore = types
       if (!text) return;
 
       text.value = newValue;
-    },
-
-    addShape(type) {
-      self.shapes.push({
-        id: crypto.randomUUID(),
-        type,
-        x: 150,
-        y: 150,
-        width: 100,
-        height: 100,
-        fill: "#000000",
-        rotation: 0,
-      });
-    },
-
-    updateShape(id, updates) {
-      const shape = self.shapes.find((s) => s.id === id);
-
-      if (shape) {
-        Object.assign(shape, updates);
-      }
-    },
-
-    deleteShape(id) {
-      const shape = self.shapes.find((s) => s.id === id);
-
-      if (shape) {
-        self.shapes.remove(shape);
-      }
     },
 
     addTextTemplate(template) {
@@ -281,6 +281,10 @@ const EditorStore = types
 
     deleteImage() {
       self.imageObjectURL = null;
+    },
+
+    deleteShape(id) {
+      self.shapes = self.shapes.filter((shape) => shape.id !== id);
     },
 
     deleteTemplateText(groupId) {

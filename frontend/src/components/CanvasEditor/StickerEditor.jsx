@@ -175,6 +175,7 @@ const StickerEditor = observer(() => {
     () => store.activeTemplate || "logo-sticker",
   );
   const [editingNametagId, setEditingNametagId] = useState(null);
+  const [selectedShapeId, setSelectedShapeId] = useState(null);
 
   const finalScale = fitScale * zoom;
 
@@ -186,6 +187,7 @@ const StickerEditor = observer(() => {
   const templateTransformerRef = useRef(null);
   const containerRef = useRef(null);
   const canvasContainerRef = useRef(null);
+  const shapeTransformerRef = useRef(null);
 
   const dimensions = (() => {
     switch (stickerType) {
@@ -206,6 +208,18 @@ const StickerEditor = observer(() => {
 
   const stageWidth = dimensions.width * MM_TO_PX;
   const stageHeight = dimensions.height * MM_TO_PX;
+
+  const handleElementSelect = (e) => {
+    if (!store.selectedSidebarShape) return;
+
+    const stage = e.target.getStage();
+    const pointerPosition = stage.getPointerPosition();
+
+    const x = pointerPosition.x / finalScale;
+    const y = pointerPosition.y / finalScale;
+
+    store.addShape(x, y);
+  };
 
   const handleTemplateSelect = (value) => {
     store.switchTemplate(value);
@@ -280,6 +294,13 @@ const StickerEditor = observer(() => {
     store.deleteImage();
   };
 
+  const handleDeleteElement = () => {
+    if (!selectedShapeId) return;
+
+    store.deleteShape(selectedShapeId);
+    setSelectedShapeId(null);
+  };
+
   const handleDeleteTemplateText = () => {
     if (!selectedTemplateId) return;
 
@@ -294,6 +315,7 @@ const StickerEditor = observer(() => {
       store.selectText(false);
       setSelectedElement(null);
       setSelectedTemplateId(null);
+      setSelectedShapeId(null);
     }
   };
 
@@ -419,6 +441,17 @@ const StickerEditor = observer(() => {
     return () => resizeObserver.disconnect();
   }, []);
 
+  useEffect(() => {
+    const transformer = shapeTransformerRef.current;
+    const stage = stageRef.current;
+    if (!transformer || !stage) return;
+    const selectedShape = selectedShapeId
+      ? stage.findOne(`#shape-${selectedShapeId}`)
+      : null;
+    transformer.nodes(selectedShape ? [selectedShape] : []);
+    transformer.getLayer()?.batchDraw();
+  }, [selectedShapeId, store.shapes.length]);
+
   return (
     <div
       ref={containerRef}
@@ -524,6 +557,27 @@ const StickerEditor = observer(() => {
         >
           Background Color
         </button>
+
+        <button
+          type="button"
+          style={{
+            display: "block",
+            width: "100%",
+            padding: "20px",
+            marginTop: "15px",
+            background: "#f2f2f2",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            textAlign: "center",
+            fontSize: "18px",
+          }}
+          onClick={() =>
+            setActivePanel(activePanel === "elements" ? null : "elements")
+          }
+        >
+          Elements
+        </button>
       </aside>
 
       {activePanel && (
@@ -602,6 +656,57 @@ const StickerEditor = observer(() => {
                   }}
                 />
               ))}
+            </div>
+          )}
+
+          {activePanel === "elements" && (
+            <div
+              style={{
+                width: "200px",
+                padding: "10px",
+              }}
+            >
+              <button
+                onClick={() => {
+                  store.selectSidebarShape("rect");
+                  store.addShape(stageWidth / 2, stageHeight / 2);
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "20px",
+                  marginTop: "15px",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  fontSize: "18px",
+                  background:
+                    store.selectedSidebarShape === "rect" ? "#ddd" : "#fff",
+                }}
+              >
+                Rectangle
+              </button>
+              <button
+                onClick={() => {
+                  store.selectSidebarShape("circle");
+                  store.addShape(stageWidth / 2, stageHeight / 2);
+                }}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "20px",
+                  marginTop: "15px",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  fontSize: "18px",
+                  background: "transparent",
+                }}
+              >
+                Circle
+              </button>
             </div>
           )}
         </div>
@@ -703,14 +808,100 @@ const StickerEditor = observer(() => {
                     store.selectText(false);
                     setSelectedElement(null);
                     setSelectedTemplateId(null);
+                    setSelectedShapeId(null);
                   }}
-                  onTouchStart={() => {
-                    if (store.isEditing) return;
+                />
+                <Rect
+                  width={stageWidth}
+                  height={stageHeight}
+                  fill="transparent"
+                  onClick={(e) => {
+                    setSelectedShapeId(null);
+                    handleElementSelect(e);
+                  }}
+                />
 
-                    store.selectText(false);
-                    setSelectedElement(null);
-                    setSelectedTemplateId(null);
-                  }}
+                {store.shapes?.map((shape) => {
+                  if (shape.type === "rect") {
+                    return (
+                      <Rect
+                        key={shape.id}
+                        id={`shape-${shape.id}`}
+                        x={shape.x - 25}
+                        y={shape.y - 25}
+                        scaleX={shape.scaleX}
+                        scaleY={shape.scaleY}
+                        rotation={shape.rotation}
+                        width={50}
+                        height={50}
+                        fill={shape.fill}
+                        draggable
+                        onClick={(e) => {
+                          e.cancelBubble = true;
+                          setSelectedShapeId(shape.id);
+                        }}
+                        onTransformEnd={(e) => {
+                          const node = e.target;
+                          store.updateShapeTransform(
+                            shape.id,
+                            node.x() + 25,
+                            node.y() + 25,
+                            node.scaleX(),
+                            node.scaleY(),
+                            node.rotation(),
+                          );
+                        }}
+                      />
+                    );
+                  } else if (shape.type === "circle") {
+                    return (
+                      <Circle
+                        key={shape.id}
+                        id={`shape-${shape.id}`}
+                        x={shape.x - 25}
+                        y={shape.y - 25}
+                        scaleX={shape.scaleX}
+                        scaleY={shape.scaleY}
+                        rotation={shape.rotation}
+                        radius={25}
+                        fill={shape.fill}
+                        draggable
+                        onClick={(e) => {
+                          e.cancelBubble = true;
+                          setSelectedShapeId(shape.id);
+                        }}
+                        onTransformEnd={(e) => {
+                          const node = e.target;
+                          store.updateShapeTransform(
+                            shape.id,
+                            node.x() + 25,
+                            node.y() + 25,
+                            node.scaleX(),
+                            node.scaleY(),
+                            node.rotation(),
+                          );
+                        }}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+                {selectedShapeId && (
+                  <DeleteCross
+                    x={selectedShapeId.x}
+                    y={selectedShapeId.y}
+                    onDelete={handleDeleteElement}
+                  />
+                )}
+                <Transformer
+                  ref={shapeTransformerRef}
+                  rotateEnabled
+                  enabledAnchors={[
+                    "top-left",
+                    "top-right",
+                    "bottom-left",
+                    "bottom-right",
+                  ]}
                 />
 
                 {store.showText && (
@@ -1027,7 +1218,7 @@ const StickerEditor = observer(() => {
                         <RichText
                           key={`nametag-rich-text-${editingNametagId}`}
                           textNode={editingNode}
-                          richHtml={element.richHtml || ""}
+                          richHtml={element.richHtml}
                           onCommit={handleNametagTextCommit}
                         />
                       </Html>

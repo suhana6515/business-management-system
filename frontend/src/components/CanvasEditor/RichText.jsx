@@ -374,11 +374,20 @@ function RichText({ textNode, richHtml = "", onCommit }) {
           aria-label="Font Size"
           title="Font size"
           value={textConfig.fontSize}
+          onMouseDown={saveSelection}
           onChange={handleFontSizeChange}
+          style={{
+            maxWidth: "150px",
+            padding: "6px",
+            background: "white",
+            border: "1px solid #ddd",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
         >
           {fontSizes.map((size) => (
             <option key={size} value={size}>
-              {size}
+              {size}px
             </option>
           ))}
         </select>
@@ -456,26 +465,19 @@ function RichText({ textNode, richHtml = "", onCommit }) {
       <div
         ref={editorRef}
         contentEditable
-        suppressContentEditableWarning
         onKeyDown={handleKeyDown}
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
         style={{
-          minHeight: Math.max(40, textNode.height()),
           width: Math.max(200, textNode.width()),
-          padding: "8px",
-          boxSizing: "border-box",
-          background: "white",
+          background: "transparent",
           color: textNode.fill(),
           outline: "none",
-          fontSize: style.fontSize,
+          fontSize: textConfig.fontSize,
           fontFamily: style.fontFamily,
           fontStyle: style.fontStyle.includes("italic") ? "italic" : "normal",
           fontWeight: style.fontStyle.includes("bold") ? "bold" : "normal",
           textDecoration: style.textDecoration,
-          lineHeight: textNode.lineHeight() || "normal",
-          whiteSpace: "pre-wrap",
-          overflowWrap: "break-word",
           cursor: "text",
         }}
       />
