@@ -16,6 +16,7 @@ const fontFamilies = [
   "Roboto",
   "Poppins",
   "Montserrat",
+  "Gabriola",
 ];
 
 const fontColors = [
@@ -36,6 +37,14 @@ const headingSizes = {
   h2: 32,
 };
 
+const generateFontSizes = (min = 8, max = 72, step = 2) => {
+  const sizes = [];
+  for (let i = min; i <= max; i += step) {
+    sizes.push(i);
+  }
+  return sizes;
+};
+
 function RichText({ textNode, richHtml = "", onCommit }) {
   const rootRef = useRef(null);
   const editorRef = useRef(null);
@@ -49,6 +58,27 @@ function RichText({ textNode, richHtml = "", onCommit }) {
     fontFamily: textNode?.fontFamily() ?? "Arial",
     textDecoration: textNode?.textDecoration() ?? "",
   });
+
+  const [textConfig, setTextConfig] = useState({
+    fontSize: textNode?.fontSize() ?? 24,
+  });
+
+  const fontSizes = generateFontSizes(8, 72, 2);
+
+  const handleFontSizeChange = (e) => {
+    const nextSize = Number(e.target.value);
+    if (!Number.isFinite(nextSize) || nextSize <= 0) {
+      return;
+    }
+    setTextConfig((prev) => ({
+      ...prev,
+      fontSize: nextSize,
+    }));
+    setStyle((previous) => ({
+      ...previous,
+      fontSize: nextSize,
+    }));
+  };
 
   const [showColors, setShowColors] = useState(false);
   const [selectedColor, setSelectedColor] = useState(
@@ -278,7 +308,8 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         position: "absolute",
         top: position.y,
         left: position.x,
-        width: Math.max(200, textNode.width()),
+        width: "max-content",
+        minWidth: Math.max(200, textNode.width()),
         zIndex: 1000,
         boxSizing: "border-box",
       }}
@@ -286,12 +317,14 @@ function RichText({ textNode, richHtml = "", onCommit }) {
       <div
         style={{
           display: "flex",
-          flexWrap: "wrap",
+          flexWrap: "nowrap",
           alignItems: "center",
           gap: "4px",
           marginBottom: "6px",
           padding: "6px",
           background: "white",
+          width: "max-content",
+          whiteSpace: "nowrap",
         }}
       >
         {commands.map(({ command, value, label }) => (
@@ -333,6 +366,19 @@ function RichText({ textNode, richHtml = "", onCommit }) {
           {fontFamilies.map((font) => (
             <option key={font} value={font}>
               {font}
+            </option>
+          ))}
+        </select>
+
+        <select
+          aria-label="Font Size"
+          title="Font size"
+          value={textConfig.fontSize}
+          onChange={handleFontSizeChange}
+        >
+          {fontSizes.map((size) => (
+            <option key={size} value={size}>
+              {size}
             </option>
           ))}
         </select>
@@ -416,7 +462,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         onKeyUp={saveSelection}
         style={{
           minHeight: Math.max(40, textNode.height()),
-          width: "100%",
+          width: Math.max(200, textNode.width()),
           padding: "8px",
           boxSizing: "border-box",
           background: "white",

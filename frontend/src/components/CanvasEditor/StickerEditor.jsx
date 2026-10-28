@@ -128,6 +128,7 @@ const URLImage = forwardRef(
     if (!image) return null;
 
     const radius = width / 2;
+
     return (
       <Group
         ref={ref}
@@ -141,7 +142,6 @@ const URLImage = forwardRef(
         onDragEnd={onDragEnd}
       >
         <Group
-          ref={ref}
           onTransformEnd={onTransformEnd}
           clipFunc={(ctx) => {
             ctx.beginPath();
@@ -171,7 +171,11 @@ const StickerEditor = observer(() => {
   const [fitScale, setFitScale] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [templateElements, setTemplateElements] = useState([]);
-  const [stickerType, setStickerType] = useState("logo-sticker");
+  const [stickerType, setStickerType] = useState(
+    () => store.activeTemplate || "logo-sticker",
+  );
+  const [editingNametagId, setEditingNametagId] = useState(null);
+
   const finalScale = fitScale * zoom;
 
   const textRef = useRef(null);
@@ -204,22 +208,19 @@ const StickerEditor = observer(() => {
   const stageHeight = dimensions.height * MM_TO_PX;
 
   const handleTemplateSelect = (value) => {
+    store.switchTemplate(value);
     setStickerType(value);
 
-    switch (value) {
-      case "logo-sticker":
-        setTemplateElements([]);
-        store.setBackgroundColor("#ffffff");
-        break;
+    setEditingNametagId(null);
+    setEditingTemplateTextId(null);
+    setSelectedTemplateId(null);
+    setSelectedElement(null);
+    setEditingNode(null);
 
-      case "nametag":
-        setTemplateElements(structuredClone(nametagTemplate.elements));
-        store.setBackgroundColor(nametagTemplate.backgroundColor);
-        break;
-
-      default:
-        setTemplateElements([]);
-        break;
+    if (value === "logo-sticker") {
+      setTemplateElements([]);
+    } else if (value === "nametag") {
+      setTemplateElements(structuredClone(nametagTemplate.elements));
     }
   };
 
@@ -299,12 +300,51 @@ const StickerEditor = observer(() => {
   const handleWheel = (e) => {
     e.evt.preventDefault();
     const scaleBy = 1.1;
+
     setZoom((prevZoom) => {
       const newZoom =
         e.evt.deltaY < 0 ? prevZoom * scaleBy : prevZoom / scaleBy;
+
       return Math.max(0.25, Math.min(newZoom, 5));
     });
   };
+
+  const handleNametagTextCommit = useCallback(
+    (newText, newStyle, html) => {
+      setTemplateElements((prev) =>
+        prev.map((element) =>
+          element.id === editingNametagId
+            ? {
+                ...element,
+                text: newText,
+                fontSize: newStyle.fontSize,
+                fontStyle: newStyle.fontStyle,
+                fontFamily: newStyle.fontFamily,
+                textDecoration: newStyle.textDecoration,
+                fill: newStyle.fontColor || element.fill,
+                richHtml: html,
+              }
+            : element,
+        ),
+      );
+
+      setEditingNode(null);
+      setEditingNametagId(null);
+    },
+    [editingNametagId],
+  );
+
+  useEffect(() => {
+    store.saveCurrentTemplate();
+  });
+
+  useEffect(() => {
+    if (stickerType === "nametag") {
+      setTemplateElements(structuredClone(nametagTemplate.elements));
+    } else {
+      setTemplateElements([]);
+    }
+  }, []);
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -441,6 +481,7 @@ const StickerEditor = observer(() => {
         >
           Edit Text
         </button>
+
         <button
           style={{
             display: "block",
@@ -462,6 +503,7 @@ const StickerEditor = observer(() => {
         >
           Font Combinations
         </button>
+
         <button
           type="button"
           style={{
@@ -501,9 +543,7 @@ const StickerEditor = observer(() => {
               {fontTemplates.map((template) => (
                 <button
                   key={template.id}
-                  onClick={() => {
-                    store.addTextTemplate(template);
-                  }}
+                  onClick={() => store.addTextTemplate(template)}
                   style={{
                     padding: "15px",
                     border: "1px solid #ddd",
@@ -511,6 +551,7 @@ const StickerEditor = observer(() => {
                     background: "#f9f9f9",
                     cursor: "pointer",
                     textAlign: "left",
+                    marginBottom: "10px",
                   }}
                 >
                   <strong>{template.name}</strong>
@@ -589,6 +630,7 @@ const StickerEditor = observer(() => {
           }}
         >
           <select
+            value={stickerType}
             style={{
               fontSize: "16px",
               outline: "none",
@@ -621,7 +663,7 @@ const StickerEditor = observer(() => {
         </header>
 
         <div
-          ref={containerRef}
+          ref={canvasContainerRef}
           style={{
             flex: 1,
             display: "flex",
@@ -646,9 +688,7 @@ const StickerEditor = observer(() => {
               scaleY={finalScale}
               onWheel={handleWheel}
               onMouseDown={handleCanvasOutsideClick}
-              style={{
-                background: "#fff",
-              }}
+              style={{ background: "#fff" }}
             >
               <Layer>
                 <Rect
@@ -693,9 +733,9 @@ const StickerEditor = observer(() => {
                       setSelectedElement("text");
                     }}
                     onDblClick={handleTextEdit}
-                    onDragEnd={(e) => {
-                      store.updateTextPosition(e.target.x(), e.target.y());
-                    }}
+                    onDragEnd={(e) =>
+                      store.updateTextPosition(e.target.x(), e.target.y())
+                    }
                     onTransformEnd={() => {
                       const node = textRef.current;
 
@@ -737,6 +777,7 @@ const StickerEditor = observer(() => {
                       ]}
                     />
                   )}
+
                 {store.showText &&
                   selectedElement === "text" &&
                   !store.isEditing && (
@@ -754,7 +795,6 @@ const StickerEditor = observer(() => {
                     y={store.y}
                     width={store.width}
                     url={store.imageObjectURL}
-                    radius={100}
                     showCross={selectedElement === "image"}
                     onSelect={() => {
                       setSelectedElement("image");
@@ -772,22 +812,16 @@ const StickerEditor = observer(() => {
                       const node = imageRef.current;
 
                       if (!node) return;
-                      const parent = node.getParent();
 
                       const newWidth = Math.max(
                         30,
                         store.width * node.scaleX(),
                       );
 
+                      store.updateImageTransform(node.x(), node.y(), newWidth);
+
                       node.scaleX(1);
                       node.scaleY(1);
-
-                      store.updateImageTransform(
-                        parent.x() + node.x(),
-                        parent.y() + node.y(),
-                        newWidth,
-                      );
-                      node.position({ x: 0, y: 0 });
                     }}
                   />
                 )}
@@ -795,7 +829,7 @@ const StickerEditor = observer(() => {
                 {selectedElement === "image" && (
                   <Transformer
                     ref={imageTransformerRef}
-                    keepRatio={true}
+                    keepRatio
                     enabledAnchors={[
                       "top-left",
                       "top-right",
@@ -836,7 +870,6 @@ const StickerEditor = observer(() => {
                         fontStyle={text.fontStyle}
                         fontFamily={text.fontFamily}
                         fill={text.fill}
-                        onDelete={() => handleDeleteTemplateText()}
                         onDblClick={(e) => {
                           e.cancelBubble = true;
 
@@ -865,6 +898,7 @@ const StickerEditor = observer(() => {
                         }
                       />
                     ))}
+
                     {selectedTemplateId === group.id && (
                       <DeleteCross
                         x={150}
@@ -874,7 +908,9 @@ const StickerEditor = observer(() => {
                     )}
                   </Group>
                 ))}
+
                 <Transformer ref={templateTransformerRef} keepRatio />
+
                 {editingTemplateTextId &&
                   (() => {
                     const { groupId, textId, node } = editingTemplateTextId;
@@ -888,7 +924,6 @@ const StickerEditor = observer(() => {
                     if (!text) return null;
 
                     const position = node.getAbsolutePosition();
-
                     const stage = node.getStage();
                     const stagePosition = stage.getAbsolutePosition();
                     const stageScale = stage.scaleX();
@@ -933,9 +968,7 @@ const StickerEditor = observer(() => {
                               e.target.value,
                             );
                           }}
-                          onBlur={() => {
-                            setEditingTemplateTextId(null);
-                          }}
+                          onBlur={() => setEditingTemplateTextId(null)}
                         />
                       </Html>
                     );
@@ -943,12 +976,32 @@ const StickerEditor = observer(() => {
 
                 {templateElements.map((element) => {
                   if (element.type === "text") {
+                    const isEditing = editingNametagId === element.id;
+
                     return (
                       <Text
                         key={element.id}
                         {...element}
-                        draggable
-                        onDblClick={handleTextEdit}
+                        draggable={!isEditing}
+                        visible={!isEditing}
+                        onDblClick={(e) => {
+                          e.cancelBubble = true;
+                          setEditingNametagId(element.id);
+                          setEditingNode(e.target);
+                        }}
+                        onDragEnd={(e) => {
+                          setTemplateElements((prev) =>
+                            prev.map((item) =>
+                              item.id === element.id
+                                ? {
+                                    ...item,
+                                    x: e.target.x(),
+                                    y: e.target.y(),
+                                  }
+                                : item,
+                            ),
+                          );
+                        }}
                       />
                     );
                   }
@@ -956,8 +1009,30 @@ const StickerEditor = observer(() => {
                   if (element.type === "line") {
                     return <Line key={element.id} {...element} draggable />;
                   }
+
                   return null;
                 })}
+
+                {editingNametagId &&
+                  editingNode &&
+                  (() => {
+                    const element = templateElements.find(
+                      (e) => e.id === editingNametagId,
+                    );
+
+                    if (!element) return null;
+
+                    return (
+                      <Html>
+                        <RichText
+                          key={`nametag-rich-text-${editingNametagId}`}
+                          textNode={editingNode}
+                          richHtml={element.richHtml || ""}
+                          onCommit={handleNametagTextCommit}
+                        />
+                      </Html>
+                    );
+                  })()}
               </Layer>
             </Stage>
           </div>

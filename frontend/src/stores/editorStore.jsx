@@ -1,4 +1,4 @@
-import { types, onSnapshot } from "mobx-state-tree";
+import { types, onSnapshot, getSnapshot, applySnapshot } from "mobx-state-tree";
 
 const TextModel = types.model("TextModel", {
   x: types.optional(types.number, 100),
@@ -41,6 +41,21 @@ const ShapeModel = types.model("ShapeModel", {
   rotation: types.optional(types.number, 0),
 });
 
+const TemplateStateModel = types.model("TemplateState", {
+  text: types.optional(TextModel, {}),
+  backgroundColor: types.optional(types.string, "#ffffff"),
+  textGroups: types.optional(types.array(TextGroupModel), []),
+  showText: types.optional(types.boolean, false),
+  x: types.optional(types.number, 100),
+  y: types.optional(types.number, 100),
+  width: types.optional(types.number, 200),
+  imageObjectURL: types.maybeNull(types.string),
+  shapes: types.optional(types.array(ShapeModel), []),
+  scale: types.optional(types.number, 1),
+  stageX: types.optional(types.number, 0),
+  stageY: types.optional(types.number, 0),
+});
+
 const EditorStore = types
   .model("EditorStore", {
     text: types.optional(TextModel, {}),
@@ -57,8 +72,72 @@ const EditorStore = types
     stageX: types.optional(types.number, 0),
     stageY: types.optional(types.number, 0),
     shapes: types.optional(types.array(ShapeModel), []),
+    activeTemplate: types.optional(
+      types.enumeration("TemplateType", ["logo-sticker", "nametag"]),
+      "logo-sticker",
+    ),
+    logoStickerState: types.optional(TemplateStateModel, {}),
+    nametagState: types.optional(TemplateStateModel, {}),
   })
   .actions((self) => ({
+    saveCurrentTemplate() {
+      const target =
+        self.activeTemplate === "nametag"
+          ? self.nametagState
+          : self.logoStickerState;
+
+      applySnapshot(target, {
+        text: getSnapshot(self.text),
+        backgroundColor: self.backgroundColor,
+        textGroups: getSnapshot(self.textGroups),
+        showText: self.showText,
+        x: self.x,
+        y: self.y,
+        width: self.width,
+        imageObjectURL: self.imageObjectURL,
+        shapes: getSnapshot(self.shapes),
+        scale: self.scale,
+        stageX: self.stageX,
+        stageY: self.stageY,
+      });
+    },
+
+    switchTemplate(template) {
+      if (template !== "logo-sticker" && template !== "nametag") {
+        return;
+      }
+
+      if (template === self.activeTemplate) return;
+
+      // Save the template being left.
+      self.saveCurrentTemplate();
+
+      // Remember the newly selected template.
+      self.activeTemplate = template;
+
+      // Restore the selected template's data.
+      const source =
+        template === "nametag" ? self.nametagState : self.logoStickerState;
+
+      const saved = getSnapshot(source);
+
+      applySnapshot(self.text, saved.text);
+      self.backgroundColor = saved.backgroundColor;
+      applySnapshot(self.textGroups, saved.textGroups);
+      self.showText = saved.showText;
+      self.x = saved.x;
+      self.y = saved.y;
+      self.width = saved.width;
+      self.imageObjectURL = saved.imageObjectURL;
+      applySnapshot(self.shapes, saved.shapes);
+      self.scale = saved.scale;
+      self.stageX = saved.stageX;
+      self.stageY = saved.stageY;
+
+      self.isEditing = false;
+      self.isTextSelected = false;
+    },
+
     setBackgroundColor(color) {
       self.backgroundColor = color;
     },
@@ -87,6 +166,7 @@ const EditorStore = types
         rotation: 0,
       });
     },
+
     updateShape(id, updates) {
       const shape = self.shapes.find((s) => s.id === id);
 
