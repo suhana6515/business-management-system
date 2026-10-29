@@ -113,12 +113,14 @@ const URLImage = forwardRef(
       url,
       x,
       y,
-      width,
+      frameWidth,
+      imageWidth,
+      imageHeight,
       showCross,
       onSelect,
       onDelete,
       onDragEnd,
-      onTransformEnd,
+      innerImageRef,
     },
     ref,
   ) => {
@@ -126,14 +128,13 @@ const URLImage = forwardRef(
 
     if (!image) return null;
 
-    const radius = width / 2;
+    const radius = frameWidth / 1.5;
 
     return (
       <Group
         ref={ref}
         x={x}
         y={y}
-        draggable
         onClick={(e) => {
           e.cancelBubble = true;
           onSelect();
@@ -141,17 +142,26 @@ const URLImage = forwardRef(
         onDragEnd={onDragEnd}
       >
         <Group
-          onTransformEnd={onTransformEnd}
           clipFunc={(ctx) => {
             ctx.beginPath();
             ctx.arc(radius, radius, radius, 0, Math.PI * 2);
             ctx.closePath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "black";
+            ctx.stroke();
+            ctx.clip();
           }}
         >
-          <Image image={image} width={width} height={width} />
+          <Image
+            ref={innerImageRef}
+            image={image}
+            width={imageWidth}
+            height={imageHeight}
+            draggable
+          />
         </Group>
 
-        {showCross && <DeleteCross x={width} y={0} onDelete={onDelete} />}
+        {showCross && <DeleteCross x={frameWidth} y={0} onDelete={onDelete} />}
       </Group>
     );
   },
@@ -188,6 +198,7 @@ const StickerEditor = observer(() => {
   const containerRef = useRef(null);
   const canvasContainerRef = useRef(null);
   const shapeTransformerRef = useRef(null);
+  const innerImageRef = useRef(null);
 
   const dimensions = (() => {
     switch (stickerType) {
@@ -321,7 +332,11 @@ const StickerEditor = observer(() => {
   const handleCanvasOutsideClick = (e) => {
     if (store.isEditing) return;
 
-    if (e.target === e.target.getStage()) {
+    const clickedOnStage = e.target === e.target.getStage();
+
+    const clickedOnBackground = e.target.name() === "sticker-background";
+
+    if (clickedOnStage || clickedOnBackground) {
       store.selectText(false);
       setSelectedElement(null);
       setSelectedTemplateId(null);
@@ -401,7 +416,7 @@ const StickerEditor = observer(() => {
 
   useEffect(() => {
     const transformer = imageTransformerRef.current;
-    const imageNode = imageRef.current;
+    const imageNode = innerImageRef.current;
 
     if (!transformer) return;
 
@@ -799,6 +814,13 @@ const StickerEditor = observer(() => {
           <div style={{ padding: "20px" }}>
             {detectedColor && (
               <span
+                onClick={() => {
+                  <HexColorPicker
+                    color={store.backgroundColor}
+                    onChange={(color) => store.setBackgroundColor(color)}
+                    style={{ width: "100%", height: "180px" }}
+                  />;
+                }}
                 style={{
                   backgroundColor: detectedColor,
                   display: "inline-block",
@@ -855,26 +877,11 @@ const StickerEditor = observer(() => {
             >
               <Layer>
                 <Rect
-                  x={0}
-                  y={0}
+                  name="sticker-background"
                   width={stageWidth}
                   height={stageHeight}
                   fill={store.backgroundColor}
-                  onMouseDown={() => {
-                    if (store.isEditing) return;
-
-                    store.selectText(false);
-                    setSelectedElement(null);
-                    setSelectedTemplateId(null);
-                    setSelectedShapeId(null);
-                  }}
-                />
-                <Rect
-                  width={stageWidth}
-                  height={stageHeight}
-                  fill="transparent"
                   onClick={(e) => {
-                    e.cancelBubble = true;
                     setSelectedShapeId(null);
                     handleElementSelect(e);
                     handleElementClick(e);
@@ -1044,9 +1051,12 @@ const StickerEditor = observer(() => {
                 {store.imageObjectURL && (
                   <URLImage
                     ref={imageRef}
-                    x={store.x}
-                    y={store.y}
-                    width={store.width}
+                    innerImageRef={innerImageRef}
+                    x={40}
+                    y={120}
+                    frameWidth={store.width}
+                    imageWidth={store.imageWidth}
+                    imageHeight={store.imageHeight}
                     url={store.imageObjectURL}
                     showCross={selectedElement === "image"}
                     onSelect={() => {
@@ -1055,14 +1065,15 @@ const StickerEditor = observer(() => {
                     }}
                     onDelete={handleDeleteImage}
                     onDragEnd={(e) => {
-                      store.updateImageTransform(
+                      store.updateInnerImageTransform(
                         e.target.x(),
                         e.target.y(),
-                        store.width,
+                        store.imageWidth,
+                        store.imageHeight,
                       );
                     }}
                     onTransformEnd={() => {
-                      const node = imageRef.current;
+                      const node = innerImageRef.current;
 
                       if (!node) return;
 
@@ -1071,7 +1082,12 @@ const StickerEditor = observer(() => {
                         store.width * node.scaleX(),
                       );
 
-                      store.updateImageTransform(node.x(), node.y(), newWidth);
+                      const newHeight = Math.max(
+                        30,
+                        node.height() * node.scaleY(),
+                      );
+
+                      store.updateImageTransform(newWidth, newHeight);
 
                       node.scaleX(1);
                       node.scaleY(1);
