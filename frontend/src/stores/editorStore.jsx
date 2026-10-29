@@ -55,6 +55,8 @@ const TemplateStateModel = types.model("TemplateState", {
   scale: types.optional(types.number, 1),
   stageX: types.optional(types.number, 0),
   stageY: types.optional(types.number, 0),
+  imageWidth: types.optional(types.number, 200),
+  imageHeight: types.optional(types.number, 200),
 });
 
 const EditorStore = types
@@ -72,6 +74,8 @@ const EditorStore = types
     scale: types.optional(types.number, 1),
     stageX: types.optional(types.number, 0),
     stageY: types.optional(types.number, 0),
+    imageWidth: types.optional(types.number, 200),
+    imageHeight: types.optional(types.number, 200),
     selectedSidebarShape: types.maybeNull(
       types.enumeration(["rect", "circle"]),
     ),
@@ -307,6 +311,15 @@ const EditorStore = types
       self.x = x;
       self.y = y;
       self.width = 200;
+      self.imageWidth = 200;
+      self.imageHeight = 200;
+    },
+
+    updateInnerImageTransform(x, y, width, height) {
+      self.x = x;
+      self.y = y;
+      self.imageWidth = width;
+      self.imageHeight = height;
     },
 
     updateImageTransform(x, y, width) {
