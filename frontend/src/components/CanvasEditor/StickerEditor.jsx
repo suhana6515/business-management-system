@@ -10,6 +10,7 @@ import {
   Rect,
   Line,
 } from "react-konva";
+import { HexColorPicker, HexColorInput } from "react-colorful";
 import { Html } from "react-konva-utils";
 import useImage from "use-image";
 import { observer } from "mobx-react-lite";
@@ -20,14 +21,12 @@ import { nametagTemplate } from "./NametagTemplate";
 const backgroundColors = [
   "#ffffff",
   "#000000",
-  "#f87171",
-  "#fbbf24",
-  "#34d399",
-  "#60a5fa",
-  "#a78bfa",
+  "#FF0000",
+  "#d3d3fe",
+  "#f3f394",
+  "#2cd207b7",
   "#f9a8d4",
-  "#d1d5db",
-  "#fef3c7",
+  "#aad9f4",
 ];
 
 const fontTemplates = [
@@ -97,7 +96,7 @@ const DeleteCross = ({ x, y, onDelete }) => (
       y={-10}
       width={20}
       height={20}
-      text="×"
+      text="x"
       fontSize={20}
       fontStyle="bold"
       fill="white"
@@ -176,6 +175,7 @@ const StickerEditor = observer(() => {
   );
   const [editingNametagId, setEditingNametagId] = useState(null);
   const [selectedShapeId, setSelectedShapeId] = useState(null);
+  const [detectedColor, setDetectedColor] = useState("");
 
   const finalScale = fitScale * zoom;
 
@@ -208,6 +208,16 @@ const StickerEditor = observer(() => {
 
   const stageWidth = dimensions.width * MM_TO_PX;
   const stageHeight = dimensions.height * MM_TO_PX;
+
+  const handleElementClick = (e) => {
+    const clickedColor = e.target.fill();
+
+    setDetectedColor(
+      clickedColor && clickedColor !== "transparent"
+        ? clickedColor
+        : store.backgroundColor,
+    );
+  };
 
   const handleElementSelect = (e) => {
     if (!store.selectedSidebarShape) return;
@@ -629,33 +639,67 @@ const StickerEditor = observer(() => {
           )}
 
           {activePanel === "background" && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "5px",
-                marginTop: "15px",
-              }}
-            >
-              {backgroundColors.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  title={color}
-                  onClick={() => store.setBackgroundColor(color)}
+            <div>
+              <h4 style={{ marginBottom: "15px" }}>Background Color</h4>
+              <HexColorPicker
+                color={store.backgroundColor}
+                onChange={(color) => store.setBackgroundColor(color)}
+                style={{ width: "100%", height: "180px" }}
+              />
+              <div style={{ marginTop: "15px" }}>
+                <label
                   style={{
-                    width: "30px",
-                    height: "30px",
-                    backgroundColor: color,
-                    border:
-                      store.backgroundColor === color
-                        ? "3px solid #2563eb"
-                        : "1px solid #ccc",
-                    borderRadius: "50%",
-                    cursor: "pointer",
+                    display: "block",
+                    fontSize: "13px",
+                    marginBottom: "5px",
+                  }}
+                >
+                  HEX Color
+                </label>
+                <HexColorInput
+                  color={store.backgroundColor}
+                  onChange={(color) => store.setBackgroundColor(color)}
+                  prefixed
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    border: "1px solid #ddd",
+                    borderRadius: "6px",
+                    boxSizing: "border-box",
+                    outline: "none",
                   }}
                 />
-              ))}
+                <h4 style={{ marginTop: "20px", marginBottom: "10px" }}>
+                  Preset Colors
+                </h4>
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: "8px",
+                }}
+              >
+                {backgroundColors.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    title={color}
+                    onClick={() => store.setBackgroundColor(color)}
+                    style={{
+                      width: "30px",
+                      height: "30px",
+                      backgroundColor: color,
+                      border:
+                        store.backgroundColor === color
+                          ? "3px solid #2563eb"
+                          : "1px solid #ccc",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                    }}
+                  />
+                ))}
+              </div>
             </div>
           )}
 
@@ -752,6 +796,20 @@ const StickerEditor = observer(() => {
             <option value="nametag">Name Tags (100 *44.15 mm)</option>
           </select>
 
+          <div style={{ padding: "20px" }}>
+            {detectedColor && (
+              <span
+                style={{
+                  backgroundColor: detectedColor,
+                  display: "inline-block",
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "8px",
+                }}
+              />
+            )}
+          </div>
+
           <div style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
             <button onClick={() => setZoom((z) => Math.max(0.25, z / 1.1))}>
               -
@@ -816,8 +874,10 @@ const StickerEditor = observer(() => {
                   height={stageHeight}
                   fill="transparent"
                   onClick={(e) => {
+                    e.cancelBubble = true;
                     setSelectedShapeId(null);
                     handleElementSelect(e);
+                    handleElementClick(e);
                   }}
                 />
 
@@ -869,6 +929,7 @@ const StickerEditor = observer(() => {
                         onClick={(e) => {
                           e.cancelBubble = true;
                           setSelectedShapeId(shape.id);
+                          handleElementClick(e);
                         }}
                         onTransformEnd={(e) => {
                           const node = e.target;
@@ -888,8 +949,8 @@ const StickerEditor = observer(() => {
                 })}
                 {selectedShapeId && (
                   <DeleteCross
-                    x={selectedShapeId.x}
-                    y={selectedShapeId.y}
+                    x={selectedShapeId.x - 25}
+                    y={selectedShapeId.y - 25}
                     onDelete={handleDeleteElement}
                   />
                 )}
@@ -922,6 +983,7 @@ const StickerEditor = observer(() => {
                       e.cancelBubble = true;
                       store.selectText(true);
                       setSelectedElement("text");
+                      handleElementClick(e);
                     }}
                     onDblClick={handleTextEdit}
                     onDragEnd={(e) =>
@@ -1072,15 +1134,6 @@ const StickerEditor = observer(() => {
                             node: e.target,
                           });
                         }}
-                        onDblTap={(e) => {
-                          e.cancelBubble = true;
-
-                          setEditingTemplateTextId({
-                            groupId: group.id,
-                            textId: text.id,
-                            node: e.target,
-                          });
-                        }}
                         visible={
                           !(
                             editingTemplateTextId?.groupId === group.id &&
@@ -1175,6 +1228,9 @@ const StickerEditor = observer(() => {
                         {...element}
                         draggable={!isEditing}
                         visible={!isEditing}
+                        onClick={(e) => {
+                          handleElementClick(e);
+                        }}
                         onDblClick={(e) => {
                           e.cancelBubble = true;
                           setEditingNametagId(element.id);
