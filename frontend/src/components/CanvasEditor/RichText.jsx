@@ -297,34 +297,36 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
   if (!textNode) return null;
 
-  const position = textNode.position();
+  const position = textNode.getAbsolutePosition();
+  const absoluteScale = textNode.getAbsoluteScale();
 
   return (
     <div
       ref={rootRef}
-      onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
       style={{
         position: "absolute",
         top: position.y,
-        left: position.x,
-        width: "max-content",
-        minWidth: Math.max(200, textNode.width()),
-        zIndex: 1000,
+        left: position.x - 50,
+        width: "textNode.width() * absoluteScale.x",
+        height: "textNode.height() * absoluteScale.y",
+        minWidth: Math.max(200, textNode.width() * absoluteScale.x),
         boxSizing: "border-box",
       }}
     >
       <div
         style={{
+          position: "absolute",
+          bottom: "100%",
+          marginBottom: "10px",
           display: "flex",
           flexWrap: "nowrap",
           alignItems: "center",
           gap: "4px",
-          marginBottom: "6px",
           padding: "6px",
           background: "white",
           width: "max-content",
-          whiteSpace: "nowrap",
+          borderRadius: "8px",
         }}
       >
         {commands.map(({ command, value, label }) => (
@@ -423,7 +425,6 @@ function RichText({ textNode, richHtml = "", onCommit }) {
               style={{
                 position: "absolute",
                 top: "100%",
-                left: 0,
                 marginTop: "5px",
                 padding: "10px",
                 background: "white",
@@ -469,16 +470,23 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
         style={{
-          width: Math.max(200, textNode.width()),
+          display: "block",
+          position: "relative",
+          width: Math.max(200, textNode.width() * absoluteScale.x),
           background: "transparent",
           color: textNode.fill(),
           outline: "none",
-          fontSize: textConfig.fontSize,
+          fontSize: textConfig.fontSize * absoluteScale.y,
           fontFamily: style.fontFamily,
           fontStyle: style.fontStyle.includes("italic") ? "italic" : "normal",
           fontWeight: style.fontStyle.includes("bold") ? "bold" : "normal",
           textDecoration: style.textDecoration,
           cursor: "text",
+          boxSizing: "border-box",
+          padding: 0,
+          margin: 0,
+          whiteSpace: "pre-wrap",
+          lineHeight: 1,
         }}
       />
     </div>
