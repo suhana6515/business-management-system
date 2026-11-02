@@ -186,6 +186,7 @@ const StickerEditor = observer(() => {
   const [editingNametagId, setEditingNametagId] = useState(null);
   const [selectedShapeId, setSelectedShapeId] = useState(null);
   const [detectedColor, setDetectedColor] = useState("");
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const finalScale = fitScale * zoom;
 
@@ -505,7 +506,6 @@ const StickerEditor = observer(() => {
             marginTop: "25px",
             background: "#f2f2f2",
             borderRadius: "6px",
-            cursor: "pointer",
           }}
         >
           Upload Image
@@ -527,7 +527,6 @@ const StickerEditor = observer(() => {
             background: "#f2f2f2",
             border: "none",
             borderRadius: "6px",
-            cursor: "pointer",
             textAlign: "center",
             fontSize: "18px",
           }}
@@ -549,7 +548,6 @@ const StickerEditor = observer(() => {
             background: "#f2f2f2",
             border: "none",
             borderRadius: "6px",
-            cursor: "pointer",
             textAlign: "center",
             fontSize: "18px",
           }}
@@ -572,7 +570,6 @@ const StickerEditor = observer(() => {
             background: "#f2f2f2",
             border: "none",
             borderRadius: "6px",
-            cursor: "pointer",
             textAlign: "center",
             fontSize: "18px",
           }}
@@ -593,7 +590,6 @@ const StickerEditor = observer(() => {
             background: "#f2f2f2",
             border: "none",
             borderRadius: "6px",
-            cursor: "pointer",
             textAlign: "center",
             fontSize: "18px",
           }}
@@ -628,7 +624,6 @@ const StickerEditor = observer(() => {
                     border: "1px solid #ddd",
                     borderRadius: "8px",
                     background: "#f9f9f9",
-                    cursor: "pointer",
                     textAlign: "left",
                     marginBottom: "10px",
                   }}
@@ -710,7 +705,6 @@ const StickerEditor = observer(() => {
                           ? "3px solid #2563eb"
                           : "1px solid #ccc",
                       borderRadius: "50%",
-                      cursor: "pointer",
                     }}
                   />
                 ))}
@@ -737,7 +731,6 @@ const StickerEditor = observer(() => {
                   marginTop: "15px",
                   border: "none",
                   borderRadius: "6px",
-                  cursor: "pointer",
                   textAlign: "center",
                   fontSize: "18px",
                   background:
@@ -758,7 +751,7 @@ const StickerEditor = observer(() => {
                   marginTop: "15px",
                   border: "none",
                   borderRadius: "6px",
-                  cursor: "pointer",
+
                   textAlign: "center",
                   fontSize: "18px",
                   background: "transparent",
@@ -803,7 +796,6 @@ const StickerEditor = observer(() => {
               minWidth: "220px",
               border: "none",
               background: "#fff",
-              cursor: "pointer",
             }}
             onChange={(e) => handleTemplateSelect(e.target.value)}
           >
@@ -811,24 +803,38 @@ const StickerEditor = observer(() => {
             <option value="nametag">Name Tags (100 *44.15 mm)</option>
           </select>
 
-          <div style={{ padding: "20px" }}>
+          <div style={{ padding: "20px", position: "relative" }}>
             {detectedColor && (
               <span
-                onClick={() => {
-                  <HexColorPicker
-                    color={store.backgroundColor}
-                    onChange={(color) => store.setBackgroundColor(color)}
-                    style={{ width: "100%", height: "180px" }}
-                  />;
-                }}
+                onClick={() => setShowColorPicker((prev) => !prev)}
                 style={{
                   backgroundColor: detectedColor,
                   display: "inline-block",
                   width: "40px",
                   height: "40px",
                   borderRadius: "8px",
+                  border: "1px solid #ccc",
                 }}
               />
+            )}
+            {showColorPicker && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50px",
+                  left: "0",
+                  zIndex: 9999,
+                  padding: "25px",
+                  margin: "10px",
+                }}
+              >
+                <HexColorPicker
+                  color={store.backgroundColor}
+                  onChange={(color) => store.setBackgroundColor(color)}
+                  style={{ width: "100%", height: "180px" }}
+                />
+                <div style={{ width: "250px" }} />
+              </div>
             )}
           </div>
 
