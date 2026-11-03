@@ -33,10 +33,23 @@ const TextGroupModel = types.model("TextGroup", {
 
 const ShapeModel = types.model("ShapeModel", {
   id: types.identifier,
-  type: types.enumeration(["rect", "circle"]),
+  type: types.enumeration([
+    "rect",
+    "circle",
+    "elipse",
+    "triangle",
+    "star",
+    "pentagon",
+    "line",
+    "dashed-line",
+    "dotted-line",
+    "arrow",
+  ]),
   x: types.number,
   y: types.number,
-  fill: types.string,
+  fill: types.optional(types.string, "#a19f9f"),
+  strokeWidth: types.optional(types.number, 1),
+  strokeColor: types.optional(types.string, "#000000"),
   scaleX: types.optional(types.number, 1),
   scaleY: types.optional(types.number, 1),
   rotation: types.optional(types.number, 0),
@@ -77,7 +90,18 @@ const EditorStore = types
     imageWidth: types.optional(types.number, 200),
     imageHeight: types.optional(types.number, 200),
     selectedSidebarShape: types.maybeNull(
-      types.enumeration(["rect", "circle"]),
+      types.enumeration([
+        "rect",
+        "circle",
+        "ellipse",
+        "triangle",
+        "star",
+        "pentagon",
+        "line",
+        "dashed-line",
+        "dotted-line",
+        "arrow",
+      ]),
     ),
     shapes: types.optional(types.array(ShapeModel), []),
     activeTemplate: types.optional(
@@ -93,6 +117,22 @@ const EditorStore = types
       self.selectedSidebarShape = type;
     },
 
+    updateShapeColor(id, color) {
+      const shape = self.shapes.find((shape) => shape.id === id);
+
+      if (shape) {
+        shape.fill = color;
+      }
+    },
+
+    setShapeStroke(id, stroke) {
+      const shape = self.shapes.find((shape) => shape.id === id);
+
+      if (shape) {
+        shape.strokeWidth = stroke;
+      }
+    },
+
     addShape(x, y) {
       if (!self.selectedSidebarShape) return;
       self.shapes.push({
@@ -100,7 +140,7 @@ const EditorStore = types
         type: self.selectedSidebarShape,
         x,
         y,
-        fill: self.selectedSidebarShape === "rect" ? "#000000" : "#000000",
+        fill: self.selectedSidebarShape === "rect" ? "#a19f9f" : "#a19f9f",
       });
       self.selectedSidebarShape = null;
     },

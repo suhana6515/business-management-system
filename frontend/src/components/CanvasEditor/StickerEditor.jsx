@@ -15,6 +15,14 @@ import {
   Star,
 } from "react-konva";
 import { HexColorPicker, HexColorInput } from "react-colorful";
+import {
+  LuTrash2,
+  LuImages,
+  LuFileText,
+  LuLayoutTemplate,
+  LuPaintBucket,
+  LuShapes,
+} from "react-icons/lu";
 import { Html } from "react-konva-utils";
 import useImage from "use-image";
 import { observer } from "mobx-react-lite";
@@ -84,33 +92,6 @@ const fontTemplates = [
   },
 ];
 
-const DeleteCross = ({ x, y, onDelete }) => (
-  <Group
-    x={x}
-    y={y}
-    onClick={(e) => {
-      e.cancelBubble = true;
-      onDelete();
-    }}
-  >
-    <Circle radius={11} fill="#d00505" stroke="white" strokeWidth={1} />
-
-    <Text
-      x={-10}
-      y={-10}
-      width={20}
-      height={20}
-      text="x"
-      fontSize={20}
-      fontStyle="bold"
-      fill="white"
-      align="center"
-      verticalAlign="middle"
-      listening={false}
-    />
-  </Group>
-);
-
 const URLImage = forwardRef(
   (
     {
@@ -120,9 +101,9 @@ const URLImage = forwardRef(
       frameWidth,
       imageWidth,
       imageHeight,
-      showCross,
+      // showCross,
       onSelect,
-      onDelete,
+      // onDelete,
       onDragEnd,
       innerImageRef,
     },
@@ -164,8 +145,6 @@ const URLImage = forwardRef(
             draggable
           />
         </Group>
-
-        {showCross && <DeleteCross x={frameWidth} y={0} onDelete={onDelete} />}
       </Group>
     );
   },
@@ -311,29 +290,21 @@ const StickerEditor = observer(() => {
     setSelectedElement("text");
   }, [store]);
 
-  const handleDeleteText = () => {
-    setEditingNode(null);
-    setSelectedElement(null);
-    store.deleteText();
-  };
-
-  const handleDeleteImage = () => {
-    setSelectedElement(null);
-    store.deleteImage();
-  };
-
-  const handleDeleteElement = () => {
-    if (!selectedShapeId) return;
-
-    store.deleteShape(selectedShapeId);
-    setSelectedShapeId(null);
-  };
-
-  const handleDeleteTemplateText = () => {
-    if (!selectedTemplateId) return;
-
-    store.deleteTemplateText(selectedTemplateId);
-    setSelectedTemplateId(null);
+  const handleDeleteSelected = () => {
+    if (selectedShapeId) {
+      store.deleteShape(selectedShapeId);
+      setSelectedShapeId(null);
+    } else if (selectedTemplateId) {
+      store.deleteTemplateText(selectedTemplateId);
+      setSelectedTemplateId(null);
+    } else if (selectedElement === "text") {
+      setEditingNode(null);
+      setSelectedElement(null);
+      store.deleteText();
+    } else if (selectedElement === "image") {
+      setSelectedElement(null);
+      store.deleteImage();
+    }
   };
 
   const handleCanvasOutsideClick = (e) => {
@@ -386,10 +357,6 @@ const StickerEditor = observer(() => {
       setEditingNametagId(null);
     },
     [editingNametagId],
-  );
-
-  const selectedShape = store.shapes.find(
-    (shape) => shape.id === selectedShapeId,
   );
 
   useEffect(() => {
@@ -501,8 +468,8 @@ const StickerEditor = observer(() => {
     >
       <aside
         style={{
-          width: "220px",
-          minWidth: "220px",
+          width: "100px",
+          minWidth: "150px",
           padding: "20px",
           background: "#fff",
           borderRight: "1px solid #ddd",
@@ -514,11 +481,10 @@ const StickerEditor = observer(() => {
             display: "block",
             padding: "20px",
             marginTop: "25px",
-            background: "#f2f2f2",
-            borderRadius: "6px",
           }}
         >
-          Upload Image
+          <LuImages size={24} />
+          <p style={{ fontSize: "16px", marginTop: "10px" }}>Image</p>
           <input
             type="file"
             accept="image/*"
@@ -530,15 +496,12 @@ const StickerEditor = observer(() => {
         <button
           type="button"
           style={{
-            display: "block",
             width: "100%",
             padding: "20px",
             marginTop: "15px",
-            background: "#f2f2f2",
+            outline: "none",
             border: "none",
-            borderRadius: "6px",
-            textAlign: "center",
-            fontSize: "18px",
+            background: "none",
           }}
           onClick={() => {
             store.showTextElement();
@@ -546,20 +509,18 @@ const StickerEditor = observer(() => {
             setSelectedElement("text");
           }}
         >
-          Edit Text
+          <LuFileText size={24} />
+          <p style={{ fontSize: "16px", marginTop: "10px" }}>Text</p>
         </button>
 
         <button
           style={{
-            display: "block",
             width: "100%",
             padding: "20px",
             marginTop: "15px",
-            background: "#f2f2f2",
+            outline: "none",
             border: "none",
-            borderRadius: "6px",
-            textAlign: "center",
-            fontSize: "18px",
+            background: "none",
           }}
           onClick={() =>
             setActivePanel(
@@ -567,47 +528,44 @@ const StickerEditor = observer(() => {
             )
           }
         >
-          Font Combinations
+          <LuLayoutTemplate size={24} />
+          <p style={{ fontSize: "16px", marginTop: "10px" }}>Templates</p>
         </button>
 
         <button
           type="button"
           style={{
-            display: "block",
             width: "100%",
             padding: "20px",
             marginTop: "15px",
-            background: "#f2f2f2",
+            outline: "none",
             border: "none",
-            borderRadius: "6px",
-            textAlign: "center",
-            fontSize: "18px",
+            background: "none",
           }}
           onClick={() =>
             setActivePanel(activePanel === "background" ? null : "background")
           }
         >
-          Background Color
+          <LuPaintBucket size={24} />
+          <p style={{ fontSize: "16px", marginTop: "10px" }}>Background</p>
         </button>
 
         <button
           type="button"
           style={{
-            display: "block",
             width: "100%",
             padding: "20px",
             marginTop: "15px",
-            background: "#f2f2f2",
+            outline: "none",
             border: "none",
-            borderRadius: "6px",
-            textAlign: "center",
-            fontSize: "18px",
+            background: "none",
           }}
           onClick={() =>
             setActivePanel(activePanel === "elements" ? null : "elements")
           }
         >
-          Elements
+          <LuShapes size={24} />
+          <p style={{ fontSize: "16px", marginTop: "10px" }}>Elements</p>
         </button>
       </aside>
 
@@ -1056,6 +1014,20 @@ const StickerEditor = observer(() => {
             </div>
           )}
 
+          <button
+            type="button"
+            cursor="pointer"
+            onClick={handleDeleteSelected}
+            d
+            style={{
+              outline: "none",
+              border: "none",
+              background: "transparent",
+            }}
+          >
+            <LuTrash2 size={22}></LuTrash2>
+          </button>
+
           <div style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
             <button onClick={() => setZoom((z) => Math.max(0.25, z / 1.1))}>
               -
@@ -1314,7 +1286,7 @@ const StickerEditor = observer(() => {
                           points={[0, 0, 500, 0]}
                           dash={[10, 10]}
                           stroke={shape.fill}
-                          strokeWidth={1}
+                          strokeWidth={stroke}
                           hitStrokeWidth={10}
                           onClick={(e) => {
                             e.cancelBubble = true;
@@ -1342,7 +1314,7 @@ const StickerEditor = observer(() => {
                           points={[0, 0, 500, 0]}
                           dash={[2, 8]}
                           stroke={shape.fill}
-                          strokeWidth={1}
+                          strokeWidth={stroke}
                           hitStrokeWidth={10}
                           lineCap="round"
                           onClick={(e) => {
@@ -1372,7 +1344,7 @@ const StickerEditor = observer(() => {
                           pointerLength={10}
                           pointerWidth={10}
                           stroke={shape.fill}
-                          strokeWidth={1}
+                          strokeWidth={stroke}
                           hitStrokeWidth={10}
                           lineCap="round"
                           onClick={(e) => {
@@ -1398,13 +1370,7 @@ const StickerEditor = observer(() => {
                       return null;
                   }
                 })}
-                {selectedShape && (
-                  <DeleteCross
-                    x={selectedShape.x - 25}
-                    y={selectedShape.y - 25}
-                    onDelete={handleDeleteElement}
-                  />
-                )}
+
                 <Transformer
                   ref={shapeTransformerRef}
                   rotateEnabled
@@ -1482,16 +1448,6 @@ const StickerEditor = observer(() => {
                     />
                   )}
 
-                {store.showText &&
-                  selectedElement === "text" &&
-                  !store.isEditing && (
-                    <DeleteCross
-                      x={store.text.x + store.text.width}
-                      y={store.text.y}
-                      onDelete={handleDeleteText}
-                    />
-                  )}
-
                 {store.imageObjectURL && (
                   <URLImage
                     ref={imageRef}
@@ -1507,7 +1463,6 @@ const StickerEditor = observer(() => {
                       setSelectedElement("image");
                       store.selectText(false);
                     }}
-                    onDelete={handleDeleteImage}
                     onDragEnd={(e) => {
                       store.updateInnerImageTransform(
                         e.target.x(),
@@ -1602,14 +1557,6 @@ const StickerEditor = observer(() => {
                         }
                       />
                     ))}
-
-                    {selectedTemplateId === group.id && (
-                      <DeleteCross
-                        x={150}
-                        y={0}
-                        onDelete={handleDeleteTemplateText}
-                      />
-                    )}
                   </Group>
                 ))}
 
