@@ -9,6 +9,10 @@ import {
   Circle,
   Rect,
   Line,
+  Arrow,
+  Ellipse,
+  RegularPolygon,
+  Star,
 } from "react-konva";
 import { HexColorPicker, HexColorInput } from "react-colorful";
 import { Html } from "react-konva-utils";
@@ -89,7 +93,7 @@ const DeleteCross = ({ x, y, onDelete }) => (
       onDelete();
     }}
   >
-    <Circle radius={11} fill="#7b7878" stroke="white" strokeWidth={1} />
+    <Circle radius={11} fill="#d00505" stroke="white" strokeWidth={1} />
 
     <Text
       x={-10}
@@ -187,6 +191,8 @@ const StickerEditor = observer(() => {
   const [selectedShapeId, setSelectedShapeId] = useState(null);
   const [detectedColor, setDetectedColor] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [stroke, setStroke] = useState(1);
+  const [showStrokeWidth, setShowStrokeWidth] = useState(false);
 
   const finalScale = fitScale * zoom;
 
@@ -380,6 +386,10 @@ const StickerEditor = observer(() => {
       setEditingNametagId(null);
     },
     [editingNametagId],
+  );
+
+  const selectedShape = store.shapes.find(
+    (shape) => shape.id === selectedShapeId,
   );
 
   useEffect(() => {
@@ -716,49 +726,187 @@ const StickerEditor = observer(() => {
             <div
               style={{
                 width: "200px",
-                padding: "10px",
+                marginLeft: "-10px",
               }}
             >
-              <button
-                onClick={() => {
-                  store.selectSidebarShape("rect");
-                  store.addShape(stageWidth / 2, stageHeight / 2);
-                }}
+              <h5 style={{ textAlign: "left", margin: "20px" }}>Shapes</h5>
+              <div
                 style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "20px",
-                  marginTop: "15px",
-                  border: "none",
-                  borderRadius: "6px",
-                  textAlign: "center",
-                  fontSize: "18px",
-                  background:
-                    store.selectedSidebarShape === "rect" ? "#ddd" : "#fff",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: "8px",
                 }}
               >
-                Rectangle
-              </button>
-              <button
-                onClick={() => {
-                  store.selectSidebarShape("circle");
-                  store.addShape(stageWidth / 2, stageHeight / 2);
-                }}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  padding: "20px",
-                  marginTop: "15px",
-                  border: "none",
-                  borderRadius: "6px",
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("rect");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <rect width="30" height="30" x="8" y="8" fill="#a19f9f " />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("circle");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <circle cx="20" cy="20" r="15" fill="#a19f9f" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("ellipse");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <ellipse cx="20" cy="20" rx="18" ry="11" fill="#a19f9f" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("triangle");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <polygon
+                      points="20,4 36,34 4,34"
+                      fill="#a19f9f"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("star");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <path
+                      d="M12 .587l3.668 7.431 8.2 1.192-5.934 5.785 1.4 8.168L12 18.896l-7.334 3.857 1.4-8.168L.132 9.21l8.2-1.192z"
+                      fill="#a19f9f"
+                    />
+                  </svg>
+                </button>
+              </div>
 
-                  textAlign: "center",
-                  fontSize: "18px",
-                  background: "transparent",
+              <h5 style={{ textAlign: "left", margin: "20px" }}>Lines</h5>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: "8px",
                 }}
               >
-                Circle
-              </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("line");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <line
+                      x1="6"
+                      y1="20"
+                      x2="34"
+                      y2="20"
+                      stroke="#a19f9f"
+                      strokeWidth={1}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("dotted-line");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <line
+                      x1="6"
+                      y1="20"
+                      x2="34"
+                      y2="20"
+                      stroke="#a19f9f"
+                      strokeDasharray="1,5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => {
+                    store.selectSidebarShape("arrow");
+                    store.addShape(stageWidth / 2, stageHeight / 2);
+                    handleElementClick(e);
+                  }}
+                  style={{
+                    outline: "none",
+                    border: "none",
+                    background: "transparent",
+                  }}
+                >
+                  <svg width="100" height="100" viewBox="0 0 40 40">
+                    <line
+                      x1="4"
+                      y1="20"
+                      x2="32"
+                      y2="20"
+                      stroke="#a19f9f"
+                      strokeLinecap="round"
+                    />
+                    <polygon points="32,16 38,20 32,24" fill="#a19f9f" />
+                  </svg>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -817,7 +965,7 @@ const StickerEditor = observer(() => {
                 }}
               />
             )}
-            {showColorPicker && (
+            {showColorPicker && detectedColor && (
               <div
                 style={{
                   position: "absolute",
@@ -829,14 +977,84 @@ const StickerEditor = observer(() => {
                 }}
               >
                 <HexColorPicker
-                  color={store.backgroundColor}
-                  onChange={(color) => store.setBackgroundColor(color)}
+                  color={detectedColor}
+                  onChange={(color) => {
+                    if (selectedShapeId) {
+                      store.updateShapeColor(selectedShapeId, color);
+                    } else {
+                      store.setBackgroundColor(color);
+                    }
+                  }}
                   style={{ width: "100%", height: "180px" }}
                 />
                 <div style={{ width: "250px" }} />
               </div>
             )}
           </div>
+
+          {selectedShapeId && (
+            <div style={{ position: "relative", marginLeft: "5px" }}>
+              <button
+                type="button"
+                onClick={() => setShowStrokeWidth((prev) => !prev)}
+                title="Stroke Width"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="18" x2="20" y2="18" />
+                </svg>
+              </button>
+
+              {showStrokeWidth && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "45px",
+                    left: "0",
+                    width: "200px",
+                    padding: "10px",
+                    background: "#fff",
+                    border: "1px solid #ddd",
+                    borderRadius: "8px",
+                    boxShadow: "0 3px 10px rgba(0,0,0,0.15)",
+                    zIndex: 9999,
+                  }}
+                >
+                  <label style={{ fontSize: "14px", textAlign: "left" }}>
+                    Stroke Width: {stroke}px
+                  </label>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    value={stroke}
+                    onChange={(e) => setStroke(Number(e.target.value))}
+                    style={{ width: "100%", marginTop: "10px" }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
             <button onClick={() => setZoom((z) => Math.max(0.25, z / 1.1))}>
@@ -895,75 +1113,295 @@ const StickerEditor = observer(() => {
                 />
 
                 {store.shapes?.map((shape) => {
-                  if (shape.type === "rect") {
-                    return (
-                      <Rect
-                        key={shape.id}
-                        id={`shape-${shape.id}`}
-                        x={shape.x - 25}
-                        y={shape.y - 25}
-                        scaleX={shape.scaleX}
-                        scaleY={shape.scaleY}
-                        rotation={shape.rotation}
-                        width={50}
-                        height={50}
-                        fill={shape.fill}
-                        draggable
-                        onClick={(e) => {
-                          e.cancelBubble = true;
-                          setSelectedShapeId(shape.id);
-                        }}
-                        onTransformEnd={(e) => {
-                          const node = e.target;
-                          store.updateShapeTransform(
-                            shape.id,
-                            node.x() + 25,
-                            node.y() + 25,
-                            node.scaleX(),
-                            node.scaleY(),
-                            node.rotation(),
-                          );
-                        }}
-                      />
-                    );
-                  } else if (shape.type === "circle") {
-                    return (
-                      <Circle
-                        key={shape.id}
-                        id={`shape-${shape.id}`}
-                        x={shape.x - 25}
-                        y={shape.y - 25}
-                        scaleX={shape.scaleX}
-                        scaleY={shape.scaleY}
-                        rotation={shape.rotation}
-                        radius={25}
-                        fill={shape.fill}
-                        draggable
-                        onClick={(e) => {
-                          e.cancelBubble = true;
-                          setSelectedShapeId(shape.id);
-                          handleElementClick(e);
-                        }}
-                        onTransformEnd={(e) => {
-                          const node = e.target;
-                          store.updateShapeTransform(
-                            shape.id,
-                            node.x() + 25,
-                            node.y() + 25,
-                            node.scaleX(),
-                            node.scaleY(),
-                            node.rotation(),
-                          );
-                        }}
-                      />
-                    );
+                  const baseProps = {
+                    key: shape.id,
+                    id: `shape-${shape.id}`,
+                    x: shape.x - 25,
+                    y: shape.y - 25,
+                    scaleX: shape.scaleX,
+                    scaleY: shape.scaleY,
+                    rotation: shape.rotation,
+                    fill: shape.fill,
+                    draggable: true,
+                  };
+                  switch (shape.type) {
+                    case "rect":
+                      return (
+                        <Rect
+                          {...baseProps}
+                          width={50}
+                          height={50}
+                          strokeWidth={stroke}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "circle":
+                      return (
+                        <Circle
+                          {...baseProps}
+                          radius={25}
+                          strokeWidth={stroke}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "ellipse":
+                      return (
+                        <Ellipse
+                          {...baseProps}
+                          radiusX={60}
+                          radiusY={40}
+                          strokeWidth={stroke}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "triangle":
+                      return (
+                        <RegularPolygon
+                          {...baseProps}
+                          sides={3}
+                          radius={50}
+                          strokeWidth={stroke}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+                    case "star":
+                      return (
+                        <Star
+                          {...baseProps}
+                          numPoints={5}
+                          innerRadius={20}
+                          outerRadius={50}
+                          strokeWidth={stroke}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "pentagon":
+                      return (
+                        <RegularPolygon
+                          {...baseProps}
+                          sides={5}
+                          radius={50}
+                          strokeWidth={stroke}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "line":
+                      return (
+                        <Line
+                          {...baseProps}
+                          points={[0, 0, 500, 0]}
+                          stroke={shape.fill}
+                          strokeWidth={stroke}
+                          hitStrokeWidth={10}
+                          lineCap="round"
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "dashed-line":
+                      return (
+                        <Line
+                          {...baseProps}
+                          points={[0, 0, 500, 0]}
+                          dash={[10, 10]}
+                          stroke={shape.fill}
+                          strokeWidth={1}
+                          hitStrokeWidth={10}
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "dotted-line":
+                      return (
+                        <Line
+                          {...baseProps}
+                          points={[0, 0, 500, 0]}
+                          dash={[2, 8]}
+                          stroke={shape.fill}
+                          strokeWidth={1}
+                          hitStrokeWidth={10}
+                          lineCap="round"
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    case "arrow":
+                      return (
+                        <Arrow
+                          {...baseProps}
+                          points={[0, 0, 500, 0]}
+                          pointerLength={10}
+                          pointerWidth={10}
+                          stroke={shape.fill}
+                          strokeWidth={1}
+                          hitStrokeWidth={10}
+                          lineCap="round"
+                          onClick={(e) => {
+                            e.cancelBubble = true;
+                            setSelectedShapeId(shape.id);
+                            handleElementClick(e);
+                          }}
+                          onTransformEnd={(e) => {
+                            const node = e.target;
+                            store.updateShapeTransform(
+                              shape.id,
+                              node.x() + 25,
+                              node.y() + 25,
+                              node.scaleX(),
+                              node.scaleY(),
+                              node.rotation(),
+                            );
+                          }}
+                        />
+                      );
+
+                    default:
+                      return null;
                   }
-                  return null;
                 })}
-                {selectedShapeId && (
+                {selectedShape && (
                   <DeleteCross
-                    x={selectedShapeId.x - 25}
-                    y={selectedShapeId.y - 25}
+                    x={selectedShape.x - 25}
+                    y={selectedShape.y - 25}
                     onDelete={handleDeleteElement}
                   />
                 )}
