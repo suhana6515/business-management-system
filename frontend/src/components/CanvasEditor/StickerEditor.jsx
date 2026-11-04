@@ -170,7 +170,6 @@ const StickerEditor = observer(() => {
   const [selectedShapeId, setSelectedShapeId] = useState(null);
   const [detectedColor, setDetectedColor] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [stroke, setStroke] = useState(1);
   const [showStrokeWidth, setShowStrokeWidth] = useState(false);
 
   const finalScale = fitScale * zoom;
@@ -358,6 +357,14 @@ const StickerEditor = observer(() => {
     },
     [editingNametagId],
   );
+
+  const selectedShape = store.shapes.find(
+    (shape) => shape.id === selectedShapeId,
+  );
+
+  const selectedLine =
+    selectedShape &&
+    ["line", "dotted-line", "arrow"].includes(selectedShape.type);
 
   useEffect(() => {
     store.saveCurrentTemplate();
@@ -950,7 +957,7 @@ const StickerEditor = observer(() => {
             )}
           </div>
 
-          {selectedShapeId && (
+          {selectedShape && selectedLine && (
             <div style={{ position: "relative", marginLeft: "5px" }}>
               <button
                 type="button"
@@ -998,15 +1005,20 @@ const StickerEditor = observer(() => {
                   }}
                 >
                   <label style={{ fontSize: "14px", textAlign: "left" }}>
-                    Stroke Width: {stroke}px
+                    Stroke Width: {selectedShape.strokeWidth}px
                   </label>
 
                   <input
                     type="range"
                     min="0"
                     max="20"
-                    value={stroke}
-                    onChange={(e) => setStroke(Number(e.target.value))}
+                    value={selectedShape.strokeWidth}
+                    onChange={(e) =>
+                      store.setShapeStroke(
+                        selectedShapeId,
+                        Number(e.target.value),
+                      )
+                    }
                     style={{ width: "100%", marginTop: "10px" }}
                   />
                 </div>
@@ -1018,7 +1030,9 @@ const StickerEditor = observer(() => {
             type="button"
             cursor="pointer"
             onClick={handleDeleteSelected}
-            d
+            deselected={
+              !selectedShapeId && !selectedTemplateId && !selectedElement
+            }
             style={{
               outline: "none",
               border: "none",
@@ -1103,7 +1117,6 @@ const StickerEditor = observer(() => {
                           {...baseProps}
                           width={50}
                           height={50}
-                          strokeWidth={stroke}
                           onClick={(e) => {
                             e.cancelBubble = true;
                             setSelectedShapeId(shape.id);
@@ -1127,7 +1140,6 @@ const StickerEditor = observer(() => {
                         <Circle
                           {...baseProps}
                           radius={25}
-                          strokeWidth={stroke}
                           onClick={(e) => {
                             e.cancelBubble = true;
                             setSelectedShapeId(shape.id);
@@ -1153,7 +1165,6 @@ const StickerEditor = observer(() => {
                           {...baseProps}
                           radiusX={60}
                           radiusY={40}
-                          strokeWidth={stroke}
                           onClick={(e) => {
                             e.cancelBubble = true;
                             setSelectedShapeId(shape.id);
@@ -1179,7 +1190,6 @@ const StickerEditor = observer(() => {
                           {...baseProps}
                           sides={3}
                           radius={50}
-                          strokeWidth={stroke}
                           onClick={(e) => {
                             e.cancelBubble = true;
                             setSelectedShapeId(shape.id);
@@ -1205,7 +1215,6 @@ const StickerEditor = observer(() => {
                           numPoints={5}
                           innerRadius={20}
                           outerRadius={50}
-                          strokeWidth={stroke}
                           onClick={(e) => {
                             e.cancelBubble = true;
                             setSelectedShapeId(shape.id);
@@ -1231,7 +1240,6 @@ const StickerEditor = observer(() => {
                           {...baseProps}
                           sides={5}
                           radius={50}
-                          strokeWidth={stroke}
                           onClick={(e) => {
                             e.cancelBubble = true;
                             setSelectedShapeId(shape.id);
@@ -1257,7 +1265,7 @@ const StickerEditor = observer(() => {
                           {...baseProps}
                           points={[0, 0, 500, 0]}
                           stroke={shape.fill}
-                          strokeWidth={stroke}
+                          strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           lineCap="round"
                           onClick={(e) => {
@@ -1286,7 +1294,7 @@ const StickerEditor = observer(() => {
                           points={[0, 0, 500, 0]}
                           dash={[10, 10]}
                           stroke={shape.fill}
-                          strokeWidth={stroke}
+                          strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           onClick={(e) => {
                             e.cancelBubble = true;
@@ -1314,7 +1322,7 @@ const StickerEditor = observer(() => {
                           points={[0, 0, 500, 0]}
                           dash={[2, 8]}
                           stroke={shape.fill}
-                          strokeWidth={stroke}
+                          strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           lineCap="round"
                           onClick={(e) => {
@@ -1344,7 +1352,7 @@ const StickerEditor = observer(() => {
                           pointerLength={10}
                           pointerWidth={10}
                           stroke={shape.fill}
-                          strokeWidth={stroke}
+                          strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           lineCap="round"
                           onClick={(e) => {
