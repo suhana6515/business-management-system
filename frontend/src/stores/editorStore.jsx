@@ -53,6 +53,10 @@ const ShapeModel = types.model("ShapeModel", {
   scaleX: types.optional(types.number, 1),
   scaleY: types.optional(types.number, 1),
   rotation: types.optional(types.number, 0),
+  imageWidth: types.optional(types.number, 200),
+  imageHeight: types.optional(types.number, 200),
+  imageObjectURL: types.maybeNull(types.string),
+  showImageOption: types.optional(types.boolean, false),
 });
 
 const TemplateStateModel = types.model("TemplateState", {
@@ -110,6 +114,8 @@ const EditorStore = types
     ),
     logoStickerState: types.optional(TemplateStateModel, {}),
     nametagState: types.optional(TemplateStateModel, {}),
+    strokeColor: types.optional(types.string, "#000000"),
+    scaleX: types.optional(types.number, 1),
   })
 
   .actions((self) => ({
@@ -153,6 +159,22 @@ const EditorStore = types
         shape.scaleX = scaleX;
         shape.scaleY = scaleY;
         shape.rotation = rotation;
+      }
+    },
+
+    updateShapeImage(id, imageObjectURL) {
+      const shape = self.shapes.find((s) => s.id === id);
+      if (shape) {
+        shape.imageObjectURL = imageObjectURL;
+      }
+    },
+
+    removeShapeImageOption(id) {
+      const shape = self.shapes.find((item) => item.id === id);
+
+      if (shape) {
+        shape.imageObjectURL = null;
+        shape.showImageOption = false;
       }
     },
 
