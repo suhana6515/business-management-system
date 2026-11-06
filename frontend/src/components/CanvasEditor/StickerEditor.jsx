@@ -92,9 +92,15 @@ const fontTemplates = [
   },
 ];
 
+const ShapePatternLoader = ({ url, children }) => {
+  const [imgObj] = useImage(url || "");
+
+  return children(imgObj);
+};
+
 const URLImage = forwardRef(
   (
-    { url, x, y, imageWidth, imageHeight, onSelect, onDragEnd, innerImageRef },
+    { url, x, y, imageWidth, imageHeight, onSelect, onDragEnd, imageRef },
     ref,
   ) => {
     const [image] = useImage(url);
@@ -113,7 +119,7 @@ const URLImage = forwardRef(
         onDragEnd={onDragEnd}
       >
         <Image
-          ref={innerImageRef}
+          ref={imageRef}
           image={image}
           width={imageWidth}
           height={imageHeight}
@@ -145,6 +151,7 @@ const StickerEditor = observer(() => {
   const [detectedColor, setDetectedColor] = useState("");
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showStrokeWidth, setShowStrokeWidth] = useState(false);
+  const [selectedShapeImageId, setSelectedShapeImageId] = useState(null);
 
   const finalScale = fitScale * zoom;
 
@@ -159,6 +166,7 @@ const StickerEditor = observer(() => {
   const shapeTransformerRef = useRef(null);
   const innerImageRef = useRef(null);
   const shapeImageRef = useRef(null);
+  const shapeImageTransformerRef = useRef(null);
 
   const dimensions = (() => {
     switch (stickerType) {
@@ -248,16 +256,13 @@ const StickerEditor = observer(() => {
     reader.onload = () => {
       if (typeof reader.result === "string") {
         store.updateShapeImage(selectedShapeId, reader.result);
+        setSelectedShapeImageId(null);
+        setSelectedElement("shape");
       }
     };
 
     reader.readAsDataURL(file);
     event.target.value = "";
-  };
-
-  const ShapePatternLoader = ({ url, children }) => {
-    const [imgObj] = useImage(url || "");
-    return children(imgObj);
   };
 
   const handleTextEdit = useCallback(
@@ -300,6 +305,7 @@ const StickerEditor = observer(() => {
     } else if (selectedElement === "image") {
       setSelectedElement(null);
       store.deleteImage();
+      setSelectedShapeImageId(null);
     }
   };
 
@@ -315,6 +321,8 @@ const StickerEditor = observer(() => {
       setSelectedElement(null);
       setSelectedTemplateId(null);
       setSelectedShapeId(null);
+      setSelectedShapeImageId(null);
+      return;
     }
   };
 
@@ -451,13 +459,33 @@ const StickerEditor = observer(() => {
   useEffect(() => {
     const transformer = shapeTransformerRef.current;
     const stage = stageRef.current;
+
     if (!transformer || !stage) return;
-    const selectedShape = selectedShapeId
-      ? stage.findOne(`#shape-${selectedShapeId}`)
-      : null;
+
+    const selectedShape =
+      selectedShapeId && !selectedShapeImageId
+        ? stage.findOne(`#shape-${selectedShapeId}`)
+        : null;
+
     transformer.nodes(selectedShape ? [selectedShape] : []);
     transformer.getLayer()?.batchDraw();
-  }, [selectedShapeId, store.shapes.length]);
+  }, [selectedShapeId, selectedShapeImageId, store.shapes.length]);
+
+  // Reconnect the inner-image Transformer to the currently selected image
+  useEffect(() => {
+    const transformer = shapeImageTransformerRef.current;
+    const stage = stageRef.current;
+
+    if (!transformer || !stage) return;
+
+    const imageNode = selectedShapeImageId
+      ? stage.findOne(`#shape-image-${selectedShapeImageId}`)
+      : null;
+
+    transformer.nodes(imageNode ? [imageNode] : []);
+    transformer.forceUpdate();
+    transformer.getLayer()?.batchDraw();
+  });
 
   return (
     <div
@@ -1104,6 +1132,7 @@ const StickerEditor = observer(() => {
 
                 {store.shapes?.map((shape) => {
                   const isSelected = selectedShapeId === shape.id;
+                  const isImageSelected = selectedShapeImageId === shape.id;
 
                   const baseProps = {
                     key: shape.id,
@@ -1115,6 +1144,34 @@ const StickerEditor = observer(() => {
                     rotation: shape.rotation,
                     fill: shape.fill,
                     draggable: true,
+                    onClick: (e) => {
+                      e.cancelBubble = true;
+                      setSelectedShapeId(shape.id);
+                      handleElementClick(e);
+                    },
+                    onDragEnd: (e) => {
+                      const node = e.target;
+
+                      store.updateShapeTransform(
+                        shape.id,
+                        node.x() + 25,
+                        node.y() + 25,
+                        node.scaleX(),
+                        node.scaleY(),
+                        node.rotation(),
+                      );
+                    },
+                    onTransformEnd: (e) => {
+                      const node = e.target;
+                      store.updateShapeTransform(
+                        shape.id,
+                        node.x() + 25,
+                        node.y() + 25,
+                        node.scaleX(),
+                        node.scaleY(),
+                        node.rotation(),
+                      );
+                    },
                   };
 
                   switch (shape.type) {
@@ -1127,22 +1184,6 @@ const StickerEditor = observer(() => {
                           strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           lineCap="round"
-                          onClick={(e) => {
-                            e.cancelBubble = true;
-                            setSelectedShapeId(shape.id);
-                            handleElementClick(e);
-                          }}
-                          onTransformEnd={(e) => {
-                            const node = e.target;
-                            store.updateShapeTransform(
-                              shape.id,
-                              node.x() + 25,
-                              node.y() + 25,
-                              node.scaleX(),
-                              node.scaleY(),
-                              node.rotation(),
-                            );
-                          }}
                         />
                       );
 
@@ -1156,22 +1197,6 @@ const StickerEditor = observer(() => {
                           strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           lineCap="round"
-                          onClick={(e) => {
-                            e.cancelBubble = true;
-                            setSelectedShapeId(shape.id);
-                            handleElementClick(e);
-                          }}
-                          onTransformEnd={(e) => {
-                            const node = e.target;
-                            store.updateShapeTransform(
-                              shape.id,
-                              node.x() + 25,
-                              node.y() + 25,
-                              node.scaleX(),
-                              node.scaleY(),
-                              node.rotation(),
-                            );
-                          }}
                         />
                       );
 
@@ -1186,22 +1211,6 @@ const StickerEditor = observer(() => {
                           strokeWidth={shape.strokeWidth}
                           hitStrokeWidth={10}
                           lineCap="round"
-                          onClick={(e) => {
-                            e.cancelBubble = true;
-                            setSelectedShapeId(shape.id);
-                            handleElementClick(e);
-                          }}
-                          onTransformEnd={(e) => {
-                            const node = e.target;
-                            store.updateShapeTransform(
-                              shape.id,
-                              node.x() + 25,
-                              node.y() + 25,
-                              node.scaleX(),
-                              node.scaleY(),
-                              node.rotation(),
-                            );
-                          }}
                         />
                       );
                   }
@@ -1212,91 +1221,252 @@ const StickerEditor = observer(() => {
                       url={shape.imageObjectURL}
                     >
                       {(loadedImage) => {
-                        const shapeProps = {
-                          id: shape.id,
-                          x: shape.x,
-                          y: shape.y,
-                          scaleX: shape.scaleX,
-                          scaleY: shape.scaleY,
-                          rotation: shape.rotation,
-                          draggable: true,
+                        let width = shape.imageWidth;
+                        let height = shape.imageHeight;
 
-                          fill: loadedImage ? undefined : shape.fill,
-                          fillPatternImage: loadedImage || undefined,
+                        let clipX = 0;
+                        let clipY = 0;
+                        let clipWidth = width;
+                        let clipHeight = height;
 
-                          fillPatternScale: loadedImage
-                            ? {
-                                x: shape.imageWidth / loadedImage.width,
-                                y: shape.imageHeight / loadedImage.height,
+                        if (
+                          ["circle", "ellipse", "triangle", "star"].includes(
+                            shape.type,
+                          )
+                        ) {
+                          clipX = -width / 2;
+                          clipY = -height / 2;
+                        }
+
+                        const clipFunc = (ctx) => {
+                          ctx.beginPath();
+
+                          if (shape.type === "rect") {
+                            ctx.rect(0, 0, width, height);
+                          } else if (shape.type === "circle") {
+                            ctx.arc(0, 0, width / 2, 0, Math.PI * 2);
+                          } else if (shape.type === "ellipse") {
+                            ctx.ellipse(
+                              0,
+                              0,
+                              width / 2,
+                              height / 2,
+                              0,
+                              0,
+                              Math.PI * 2,
+                            );
+                          } else if (shape.type === "triangle") {
+                            ctx.moveTo(0, -50);
+                            ctx.lineTo(50, 50);
+                            ctx.lineTo(-50, 50);
+                            ctx.closePath();
+                          } else if (shape.type === "star") {
+                            const outerRadius = 50;
+                            const innerRadius = 25;
+
+                            for (let i = 0; i < 10; i++) {
+                              const radius =
+                                i % 2 === 0 ? outerRadius : innerRadius;
+                              const angle = (Math.PI / 5) * i - Math.PI / 2;
+
+                              const x = Math.cos(angle) * radius;
+                              const y = Math.sin(angle) * radius;
+
+                              if (i === 0) {
+                                ctx.moveTo(x, y);
+                              } else {
+                                ctx.lineTo(x, y);
                               }
-                            : undefined,
+                            }
 
-                          onClick: (e) => {
-                            e.cancelBubble = true;
-                            setSelectedShapeId(shape.id);
-                            setSelectedElement("shape");
-                            store.selectText(false);
-                            handleElementClick(e);
-                          },
+                            ctx.closePath();
+                          }
 
-                          onDragEnd: (e) => {
-                            store.updateShapeTransform(
-                              shape.id,
-                              e.target.x() + 25,
-                              e.target.y() + 25,
-                              e.target.scaleX(),
-                              e.target.scaleY(),
-                              e.target.rotation(),
-                            );
-                          },
-                          onTransformEnd: (e) => {
-                            const node = e.target;
-                            store.updateShapeTransform(
-                              shape.id,
-                              node.x() + 25,
-                              node.y() + 25,
-                              node.scaleX(),
-                              node.scaleY(),
-                              node.rotation(),
-                            );
-                          },
+                          ctx.clip();
+                        };
+
+                        let initialScale = 1;
+                        let initialX = clipX;
+                        let initialY = clipY;
+
+                        if (loadedImage) {
+                          initialScale = Math.max(
+                            clipWidth / loadedImage.width,
+                            clipHeight / loadedImage.height,
+                          );
+
+                          initialX =
+                            clipX +
+                            (clipWidth - loadedImage.width * initialScale) / 2;
+
+                          initialY =
+                            clipY +
+                            (clipHeight - loadedImage.height * initialScale) /
+                              2;
+                        }
+
+                        const imageScaleX = shape.imageScaleX || initialScale;
+
+                        const imageScaleY = shape.imageScaleY || initialScale;
+
+                        const imageX = shape.imageScaleX
+                          ? shape.imageX
+                          : initialX;
+
+                        const imageY = shape.imageScaleY
+                          ? shape.imageY
+                          : initialY;
+
+                        const updateInnerImage = (node) => {
+                          store.updateShapeInnerImageTransform(
+                            shape.id,
+                            node.x(),
+                            node.y(),
+                            node.scaleX(),
+                            node.scaleY(),
+                          );
+                        };
+
+                        const shapeClick = (e) => {
+                          e.cancelBubble = true;
+
+                          setSelectedShapeId(shape.id);
+                          setSelectedShapeImageId(null);
+                          setSelectedElement("shape");
+
+                          store.selectText(false);
+                          handleElementClick(e);
                         };
 
                         return (
-                          <Group key={shape.id}>
+                          <Group
+                            key={shape.id}
+                            id={`shape-${shape.id}`}
+                            x={shape.x}
+                            y={shape.y}
+                            scaleX={shape.scaleX}
+                            scaleY={shape.scaleY}
+                            rotation={shape.rotation}
+                            draggable={!isImageSelected}
+                            clipFunc={clipFunc}
+                            onClick={shapeClick}
+                            onTap={shapeClick}
+                            onDragEnd={(e) => {
+                              e.cancelBubble = true;
+
+                              const node = e.target;
+
+                              store.updateShapeTransform(
+                                shape.id,
+                                node.x(),
+                                node.y(),
+                                node.scaleX(),
+                                node.scaleY(),
+                                node.rotation(),
+                              );
+                            }}
+                            onTransformEnd={(e) => {
+                              e.cancelBubble = true;
+
+                              const node = e.target;
+
+                              store.updateShapeTransform(
+                                shape.id,
+                                node.x(),
+                                node.y(),
+                                node.scaleX(),
+                                node.scaleY(),
+                                node.rotation(),
+                              );
+                            }}
+                          >
                             {shape.type === "rect" && (
                               <Rect
-                                {...shapeProps}
                                 width={shape.imageWidth}
                                 height={shape.imageHeight}
+                                fill={loadedImage ? "transparent" : shape.fill}
+                                stroke={shape.strokeColor}
+                                strokeWidth={shape.strokeWidth}
+                                onClick={shapeClick}
                               />
                             )}
                             {shape.type === "circle" && (
                               <Circle
-                                {...shapeProps}
-                                radius={shape.imageWidth / 2}
+                                x={0}
+                                y={0}
+                                radius={width / 2}
+                                fill={loadedImage ? "transparent" : shape.fill}
+                                stroke={shape.strokeColor}
+                                strokeWidth={shape.strokeWidth}
+                                onClick={shapeClick}
                               />
                             )}
                             {shape.type === "ellipse" && (
                               <Ellipse
-                                {...shapeProps}
-                                radiusX={shape.imageWidth / 2}
-                                radiusY={shape.imageHeight / 2}
+                                x={0}
+                                y={0}
+                                radiusX={width / 2}
+                                radiusY={height / 2}
+                                fill={loadedImage ? "transparent" : shape.fill}
+                                stroke={shape.strokeColor}
+                                strokeWidth={shape.strokeWidth}
+                                onClick={shapeClick}
                               />
                             )}
                             {shape.type === "triangle" && (
                               <RegularPolygon
-                                {...shapeProps}
+                                x={0}
+                                y={0}
                                 sides={3}
                                 radius={50}
+                                fill={loadedImage ? "transparent" : shape.fill}
+                                stroke={shape.strokeColor}
+                                strokeWidth={shape.strokeWidth}
+                                onClick={shapeClick}
                               />
                             )}
                             {shape.type === "star" && (
                               <Star
-                                {...shapeProps}
+                                x={0}
+                                y={0}
                                 numPoints={5}
                                 innerRadius={25}
                                 outerRadius={50}
+                                fill={loadedImage ? "transparent" : shape.fill}
+                                stroke={shape.strokeColor}
+                                strokeWidth={shape.strokeWidth}
+                                onClick={shapeClick}
+                              />
+                            )}
+
+                            {loadedImage && (
+                              <Image
+                                id={`shape-image-${shape.id}`}
+                                image={loadedImage}
+                                x={imageX}
+                                y={imageY}
+                                width={loadedImage.width}
+                                height={loadedImage.height}
+                                scaleX={imageScaleX}
+                                scaleY={imageScaleY}
+                                draggable
+                                onClick={(e) => {
+                                  e.cancelBubble = true;
+
+                                  setSelectedShapeId(shape.id);
+                                  setSelectedShapeImageId(shape.id);
+                                  setSelectedElement("shapeImage");
+
+                                  store.selectText(false);
+                                }}
+                                onDragEnd={(e) => {
+                                  e.cancelBubble = true;
+                                  updateInnerImage(e.target);
+                                }}
+                                onTransformEnd={(e) => {
+                                  e.cancelBubble = true;
+                                  updateInnerImage(e.target);
+                                }}
                               />
                             )}
 
@@ -1305,8 +1475,8 @@ const StickerEditor = observer(() => {
                                 divProps={{
                                   style: {
                                     position: "absolute",
-                                    left: `${shape.x}px`,
-                                    top: `${shape.y - 45}px`,
+                                    left: `${shape.type === "rect" ? 0 : -50}px`,
+                                    top: "-85px",
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "6px",
@@ -1321,6 +1491,7 @@ const StickerEditor = observer(() => {
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedShapeId(shape.id);
+                                      setSelectedShapeImageId(shape.id);
                                       shapeImageRef.current?.click();
                                     }}
                                     style={{
@@ -1341,6 +1512,7 @@ const StickerEditor = observer(() => {
                                     type="button"
                                     onClick={() => {
                                       store.removeShapeImageOption(shape.id);
+                                      setSelectedShapeImageId(null);
                                     }}
                                     style={{
                                       padding: "5px 8px",
@@ -1365,6 +1537,21 @@ const StickerEditor = observer(() => {
 
                 <Transformer
                   ref={shapeTransformerRef}
+                  rotateEnabled
+                  enabledAnchors={[
+                    "top-left",
+                    "top-right",
+                    "bottom-left",
+                    "bottom-right",
+                    "middle-left",
+                    "middle-right",
+                    "top-center",
+                    "bottom-center",
+                  ]}
+                />
+
+                <Transformer
+                  ref={shapeImageTransformerRef}
                   rotateEnabled
                   enabledAnchors={[
                     "top-left",

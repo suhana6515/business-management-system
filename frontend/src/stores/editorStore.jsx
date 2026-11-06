@@ -57,6 +57,10 @@ const ShapeModel = types.model("ShapeModel", {
   imageHeight: types.optional(types.number, 200),
   imageObjectURL: types.maybeNull(types.string),
   showImageOption: types.optional(types.boolean, false),
+  imageX: types.optional(types.number, 0),
+  imageY: types.optional(types.number, 0),
+  imageScaleX: types.optional(types.number, 0),
+  imageScaleY: types.optional(types.number, 0),
 });
 
 const TemplateStateModel = types.model("TemplateState", {
@@ -164,8 +168,13 @@ const EditorStore = types
 
     updateShapeImage(id, imageObjectURL) {
       const shape = self.shapes.find((s) => s.id === id);
+
       if (shape) {
         shape.imageObjectURL = imageObjectURL;
+        shape.imageX = 0;
+        shape.imageY = 0;
+        shape.imageScaleX = 0;
+        shape.imageScaleY = 0;
       }
     },
 
@@ -174,7 +183,22 @@ const EditorStore = types
 
       if (shape) {
         shape.imageObjectURL = null;
+        shape.imageX = 0;
+        shape.imageY = 0;
+        shape.imageScaleX = 0;
+        shape.imageScaleY = 0;
         shape.showImageOption = false;
+      }
+    },
+
+    updateShapeInnerImageTransform(id, x, y, scaleX, scaleY) {
+      const shape = self.shapes.find((s) => s.id === id);
+
+      if (shape) {
+        shape.imageX = x;
+        shape.imageY = y;
+        shape.imageScaleX = scaleX;
+        shape.imageScaleY = scaleY;
       }
     },
 
