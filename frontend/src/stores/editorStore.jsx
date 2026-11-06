@@ -36,7 +36,7 @@ const ShapeModel = types.model("ShapeModel", {
   type: types.enumeration([
     "rect",
     "circle",
-    "elipse",
+    "ellipse",
     "triangle",
     "star",
     "pentagon",
@@ -57,10 +57,10 @@ const ShapeModel = types.model("ShapeModel", {
   imageHeight: types.optional(types.number, 200),
   imageObjectURL: types.maybeNull(types.string),
   showImageOption: types.optional(types.boolean, false),
-  imageX: types.optional(types.number, 0),
-  imageY: types.optional(types.number, 0),
-  imageScaleX: types.optional(types.number, 0),
-  imageScaleY: types.optional(types.number, 0),
+  imageX: types.optional(types.number, 1),
+  imageY: types.optional(types.number, 1),
+  imageScaleX: types.optional(types.number, 1),
+  imageScaleY: types.optional(types.number, 1),
 });
 
 const TemplateStateModel = types.model("TemplateState", {

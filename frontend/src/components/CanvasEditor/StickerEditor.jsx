@@ -326,6 +326,14 @@ const StickerEditor = observer(() => {
     }
   };
 
+  const handleShapeImageClick = (e, shapeId) => {
+    e.cancelBubble = true;
+    setSelectedShapeId(shapeId);
+    setSelectedElement("shape");
+    store.selectText(false);
+    setSelectedShapeImageId(e.evt?.shiftKey ? shapeId : null);
+  };
+
   const handleWheel = (e) => {
     e.evt.preventDefault();
     const scaleBy = 1.1;
@@ -462,16 +470,24 @@ const StickerEditor = observer(() => {
 
     if (!transformer || !stage) return;
 
-    const selectedShape =
-      selectedShapeId && !selectedShapeImageId
-        ? stage.findOne(`#shape-${selectedShapeId}`)
-        : null;
+    let selectedNode = null;
 
-    transformer.nodes(selectedShape ? [selectedShape] : []);
+    if (selectedShapeId) {
+      selectedNode =
+        selectedShapeImageId === selectedShapeId
+          ? stage.findOne(`#shape-image-${selectedShapeId}`)
+          : stage.findOne(`#shape-${selectedShapeId}`);
+    }
+
+    transformer.nodes(selectedNode ? [selectedNode] : []);
     transformer.getLayer()?.batchDraw();
-  }, [selectedShapeId, selectedShapeImageId, store.shapes.length]);
+  }, [
+    selectedShapeId,
+    selectedShapeImageId,
+    store.shapes.length,
+    selectedShape?.imageObjectURL,
+  ]);
 
-  // Reconnect the inner-image Transformer to the currently selected image
   useEffect(() => {
     const transformer = shapeImageTransformerRef.current;
     const stage = stageRef.current;
@@ -1132,7 +1148,6 @@ const StickerEditor = observer(() => {
 
                 {store.shapes?.map((shape) => {
                   const isSelected = selectedShapeId === shape.id;
-                  const isImageSelected = selectedShapeImageId === shape.id;
 
                   const baseProps = {
                     key: shape.id,
@@ -1317,16 +1332,6 @@ const StickerEditor = observer(() => {
                           ? shape.imageY
                           : initialY;
 
-                        const updateInnerImage = (node) => {
-                          store.updateShapeInnerImageTransform(
-                            shape.id,
-                            node.x(),
-                            node.y(),
-                            node.scaleX(),
-                            node.scaleY(),
-                          );
-                        };
-
                         const shapeClick = (e) => {
                           e.cancelBubble = true;
 
@@ -1347,15 +1352,14 @@ const StickerEditor = observer(() => {
                             scaleX={shape.scaleX}
                             scaleY={shape.scaleY}
                             rotation={shape.rotation}
-                            draggable={!isImageSelected}
+                            draggable={selectedShapeImageId !== shape.id}
                             clipFunc={clipFunc}
-                            onClick={shapeClick}
-                            onTap={shapeClick}
-                            onDragEnd={(e) => {
+                            onClick={(e) => {
                               e.cancelBubble = true;
-
+                              handleCanvasOutsideClick(e);
+                            }}
+                            onDragEnd={(e) => {
                               const node = e.target;
-
                               store.updateShapeTransform(
                                 shape.id,
                                 node.x(),
@@ -1367,9 +1371,7 @@ const StickerEditor = observer(() => {
                             }}
                             onTransformEnd={(e) => {
                               e.cancelBubble = true;
-
                               const node = e.target;
-
                               store.updateShapeTransform(
                                 shape.id,
                                 node.x(),
@@ -1449,23 +1451,32 @@ const StickerEditor = observer(() => {
                                 height={loadedImage.height}
                                 scaleX={imageScaleX}
                                 scaleY={imageScaleY}
-                                draggable
+                                draggable={selectedShapeImageId === shape.id}
                                 onClick={(e) => {
                                   e.cancelBubble = true;
-
-                                  setSelectedShapeId(shape.id);
-                                  setSelectedShapeImageId(shape.id);
-                                  setSelectedElement("shapeImage");
-
-                                  store.selectText(false);
+                                  handleShapeImageClick(e, shape.id);
                                 }}
                                 onDragEnd={(e) => {
                                   e.cancelBubble = true;
-                                  updateInnerImage(e.target);
+                                  const node = e.target;
+                                  store.updateShapeInnerImageTransform(
+                                    shape.id,
+                                    node.x(),
+                                    node.y(),
+                                    node.scaleX(),
+                                    node.scaleY(),
+                                  );
                                 }}
                                 onTransformEnd={(e) => {
                                   e.cancelBubble = true;
-                                  updateInnerImage(e.target);
+                                  const node = e.target;
+                                  store.updateShapeInnerImageTransform(
+                                    shape.id,
+                                    node.x(),
+                                    node.y(),
+                                    node.scaleX(),
+                                    node.scaleY(),
+                                  );
                                 }}
                               />
                             )}
@@ -1548,21 +1559,10 @@ const StickerEditor = observer(() => {
                     "top-center",
                     "bottom-center",
                   ]}
-                />
-
-                <Transformer
-                  ref={shapeImageTransformerRef}
-                  rotateEnabled
-                  enabledAnchors={[
-                    "top-left",
-                    "top-right",
-                    "bottom-left",
-                    "bottom-right",
-                    "middle-left",
-                    "middle-right",
-                    "top-center",
-                    "bottom-center",
-                  ]}
+                  boundBoxFunc={(oldBox, newBox) => {
+                    if (newBox.width < 10 || newBox.height < 10) return oldBox;
+                    return newBox;
+                  }}
                 />
 
                 {store.showText && (
