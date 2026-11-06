@@ -189,7 +189,7 @@ const StickerEditor = observer(() => {
   const stageHeight = dimensions.height * MM_TO_PX;
 
   const handleElementClick = (e) => {
-    const clickedColor = e.target.fill();
+    const clickedColor = e.target.getAttr("fill");
 
     setDetectedColor(
       clickedColor && clickedColor !== "transparent"
