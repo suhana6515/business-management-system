@@ -1598,6 +1598,7 @@ const StickerEditor = observer(() => {
                       store.selectText(true);
                       setSelectedElement("text");
                       handleElementClick(e);
+                      setSelectedTemplateId(null);
                     }}
                     onDblClick={handleTextEdit}
                     onDragEnd={(e) =>
