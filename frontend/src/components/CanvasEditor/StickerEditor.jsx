@@ -100,10 +100,27 @@ const ShapePatternLoader = ({ url, children }) => {
 
 const URLImage = forwardRef(
   (
-    { url, x, y, imageWidth, imageHeight, onSelect, onDragEnd, imageRef },
+    {
+      url,
+      x,
+      y,
+      imageWidth,
+      imageHeight,
+      onImageLoaded,
+      onSelect,
+      onDragEnd,
+      onTransformEnd,
+      imageRef,
+    },
     ref,
   ) => {
     const [image] = useImage(url);
+
+    useEffect(() => {
+      if (image) {
+        onImageLoaded?.();
+      }
+    }, [image, onImageLoaded]);
 
     if (!image) return null;
 
@@ -116,14 +133,30 @@ const URLImage = forwardRef(
           e.cancelBubble = true;
           onSelect();
         }}
-        onDragEnd={onDragEnd}
+        draggable
+        onDragEnd={(e) => {
+          onDragEnd?.(e.target.x(), e.target.y());
+        }}
+        onTransformEnd={(e) => {
+          const node = e.target;
+
+          const newWidth = imageWidth * node.scaleX();
+          const newHeight = imageHeight * node.scaleY();
+
+          const newX = node.x();
+          const newY = node.y();
+
+          node.scaleX(1);
+          node.scaleY(1);
+
+          onTransformEnd?.(newX, newY, newWidth, newHeight);
+        }}
       >
         <Image
           ref={imageRef}
           image={image}
           width={imageWidth}
           height={imageHeight}
-          draggable
         />
       </Group>
     );
@@ -164,7 +197,7 @@ const StickerEditor = observer(() => {
   const containerRef = useRef(null);
   const canvasContainerRef = useRef(null);
   const shapeTransformerRef = useRef(null);
-  const innerImageRef = useRef(null);
+
   const shapeImageRef = useRef(null);
   const shapeImageTransformerRef = useRef(null);
 
@@ -426,7 +459,7 @@ const StickerEditor = observer(() => {
 
   useEffect(() => {
     const transformer = imageTransformerRef.current;
-    const imageNode = innerImageRef.current;
+    const imageNode = imageRef.current;
 
     if (!transformer) return;
 
@@ -438,6 +471,17 @@ const StickerEditor = observer(() => {
 
     transformer.getLayer()?.batchDraw();
   }, [selectedElement, store.imageObjectURL]);
+
+  const handleImageLoaded = useCallback(() => {
+    const transformer = imageTransformerRef.current;
+    const imageNode = imageRef.current;
+
+    if (selectedElement === "image" && transformer && imageNode) {
+      transformer.nodes([imageNode]);
+      transformer.forceUpdate();
+      transformer.getLayer()?.batchDraw();
+    }
+  }, [selectedElement]);
 
   useEffect(() => {
     const transformer = templateTransformerRef.current;
@@ -1176,6 +1220,8 @@ const StickerEditor = observer(() => {
                     onClick: (e) => {
                       e.cancelBubble = true;
                       setSelectedShapeId(shape.id);
+                      setSelectedTemplateId(null);
+                      store.selectText(false);
                       handleElementClick(e);
                     },
                     onDragEnd: (e) => {
@@ -1352,7 +1398,7 @@ const StickerEditor = observer(() => {
                           setSelectedShapeId(shape.id);
                           setSelectedShapeImageId(null);
                           setSelectedElement("shape");
-
+                          setSelectedTemplateId(null);
                           store.selectText(false);
                           handleElementClick(e);
                         };
@@ -1469,6 +1515,8 @@ const StickerEditor = observer(() => {
                                 onClick={(e) => {
                                   e.cancelBubble = true;
                                   handleShapeImageClick(e, shape.id);
+                                  setSelectedTemplateId(null);
+                                  store.selectText(false);
                                 }}
                                 onDragEnd={(e) => {
                                   e.cancelBubble = true;
@@ -1653,65 +1701,46 @@ const StickerEditor = observer(() => {
                 {store.imageObjectURL && (
                   <URLImage
                     ref={imageRef}
-                    innerImageRef={innerImageRef}
-                    x={40}
-                    y={120}
+                    x={store.x}
+                    y={store.y}
                     frameWidth={store.width}
                     imageWidth={store.imageWidth}
                     imageHeight={store.imageHeight}
                     url={store.imageObjectURL}
-                    showCross={selectedElement === "image"}
+                    onImageLoaded={handleImageLoaded}
                     onSelect={() => {
                       setSelectedElement("image");
                       store.selectText(false);
+                      setSelectedTemplateId(null);
                     }}
-                    onDragEnd={(e) => {
-                      store.updateInnerImageTransform(
-                        e.target.x(),
-                        e.target.y(),
+                    onDragEnd={(x, y) => {
+                      store.updateImageTransform(
+                        x,
+                        y,
                         store.imageWidth,
                         store.imageHeight,
                       );
                     }}
-                    onTransformEnd={() => {
-                      const node = innerImageRef.current;
-
-                      if (!node) return;
-
-                      const newWidth = Math.max(
-                        30,
-                        store.width * node.scaleX(),
-                      );
-
-                      const newHeight = Math.max(
-                        30,
-                        node.height() * node.scaleY(),
-                      );
-
-                      store.updateImageTransform(newWidth, newHeight);
-
-                      node.scaleX(1);
-                      node.scaleY(1);
+                    onTransformEnd={(x, y, width, height) => {
+                      store.updateImageTransform(x, y, width, height);
                     }}
                   />
                 )}
 
-                {selectedElement === "image" && (
-                  <Transformer
-                    ref={imageTransformerRef}
-                    keepRatio
-                    enabledAnchors={[
-                      "top-left",
-                      "top-right",
-                      "bottom-left",
-                      "bottom-right",
-                      "middle-left",
-                      "middle-right",
-                      "top-center",
-                      "bottom-center",
-                    ]}
-                  />
-                )}
+                <Transformer
+                  ref={imageTransformerRef}
+                  keepRatio
+                  enabledAnchors={[
+                    "top-left",
+                    "top-right",
+                    "bottom-left",
+                    "bottom-right",
+                    "middle-left",
+                    "middle-right",
+                    "top-center",
+                    "bottom-center",
+                  ]}
+                />
 
                 {store.textGroups.map((group) => (
                   <Group
@@ -1723,6 +1752,9 @@ const StickerEditor = observer(() => {
                     onClick={(e) => {
                       e.cancelBubble = true;
                       setSelectedTemplateId(group.id);
+                      setSelectedShapeId(null);
+                      setSelectedShapeImageId(null);
+
                       setSelectedElement(null);
                       store.selectText(false);
                     }}

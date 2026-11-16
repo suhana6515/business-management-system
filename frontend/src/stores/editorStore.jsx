@@ -401,17 +401,12 @@ const EditorStore = types
       self.imageHeight = 200;
     },
 
-    updateInnerImageTransform(x, y, width, height) {
+    updateImageTransform(x, y, imageWidth, imageHeight) {
       self.x = x;
       self.y = y;
-      self.imageWidth = width;
-      self.imageHeight = height;
-    },
-
-    updateImageTransform(x, y, width) {
-      self.x = x;
-      self.y = y;
-      self.width = width;
+      self.width = imageWidth;
+      self.imageWidth = imageWidth;
+      self.imageHeight = imageHeight;
     },
 
     updateStage(scale, x, y) {
