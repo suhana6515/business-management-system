@@ -22,6 +22,7 @@ import {
   LuLayoutTemplate,
   LuPaintBucket,
   LuShapes,
+  LuMessageCircleQuestion,
 } from "react-icons/lu";
 import { Html } from "react-konva-utils";
 import useImage from "use-image";
@@ -185,6 +186,7 @@ const StickerEditor = observer(() => {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showStrokeWidth, setShowStrokeWidth] = useState(false);
   const [selectedShapeImageId, setSelectedShapeImageId] = useState(null);
+  const [showToolTip, setShowToolTip] = useState(false);
 
   const finalScale = fitScale * zoom;
 
@@ -322,8 +324,8 @@ const StickerEditor = observer(() => {
   );
 
   const handleTextCommit = useCallback(
-    (newText, newStyle, html) => {
-      store.commitText(newText, newStyle, html);
+    (value, style, html) => {
+      store.commitText(value, style, html);
       setEditingNode(null);
       setSelectedElement("text");
     },
@@ -1581,23 +1583,74 @@ const StickerEditor = observer(() => {
                                     <LuImages size={16} />
                                   </button>
 
+                                  {selectedShapeImageId ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        store.removeShapeImageOption(shape.id);
+                                        setSelectedShapeImageId(null);
+                                      }}
+                                      style={{
+                                        padding: "5px 8px",
+                                        color: "red",
+                                        cursor: "pointer",
+                                        background: "#fff",
+                                        border: "1px solid #ccc",
+                                        borderRadius: "5px",
+                                      }}
+                                    >
+                                      <LuTrash2 size={16} />
+                                    </button>
+                                  ) : null}
+
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      store.removeShapeImageOption(shape.id);
-                                      setSelectedShapeImageId(null);
-                                    }}
                                     style={{
                                       padding: "5px 8px",
-                                      color: "red",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: "4px",
                                       cursor: "pointer",
                                       background: "#fff",
                                       border: "1px solid #ccc",
                                       borderRadius: "5px",
                                     }}
+                                    onClick={() =>
+                                      setShowToolTip((prev) => !prev)
+                                    }
                                   >
-                                    <LuTrash2 size={16} />
+                                    <LuMessageCircleQuestion size={16} />
                                   </button>
+
+                                  <div
+                                    style={{
+                                      position: "relative",
+                                      display: "inline-block",
+                                    }}
+                                  >
+                                    {showToolTip && (
+                                      <div
+                                        style={{
+                                          position: "absolute",
+                                          top: 0,
+                                          right: 0,
+                                          left: "10px",
+                                          width: "220px",
+                                          padding: "10px",
+                                          background: "transparent",
+                                          color: "#0a0a0a",
+                                          fontSize: "12px",
+                                          lineHeight: "1.5",
+                                          borderRadius: "8px",
+                                          boxShadow:
+                                            "0 3px 5px rgba(0,0,0,0.2)",
+                                        }}
+                                      >
+                                        Click Shift + Image to select and
+                                        transform the picture within the shape.
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </Html>
                             )}
@@ -1679,24 +1732,19 @@ const StickerEditor = observer(() => {
                   </Html>
                 )}
 
-                {store.showText &&
-                  selectedElement === "text" &&
-                  store.isTextSelected &&
-                  !store.isEditing && (
-                    <Transformer
-                      ref={transformerRef}
-                      enabledAnchors={[
-                        "top-left",
-                        "top-right",
-                        "bottom-left",
-                        "bottom-right",
-                        "middle-left",
-                        "middle-right",
-                        "top-center",
-                        "bottom-center",
-                      ]}
-                    />
-                  )}
+                <Transformer
+                  ref={transformerRef}
+                  enabledAnchors={[
+                    "top-left",
+                    "top-right",
+                    "bottom-left",
+                    "bottom-right",
+                    "middle-left",
+                    "middle-right",
+                    "top-center",
+                    "bottom-center",
+                  ]}
+                />
 
                 {store.imageObjectURL && (
                   <URLImage
