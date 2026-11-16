@@ -181,7 +181,6 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     editor.focus();
 
-    // Apply the selected font to all the text being edited.
     const selection = window.getSelection();
     const range = document.createRange();
 
@@ -197,7 +196,6 @@ function RichText({ textNode, richHtml = "", onCommit }) {
       fontFamily,
     }));
 
-    // Leave the cursor at the end so typing won't replace the text.
     const endRange = document.createRange();
     endRange.selectNodeContents(editor);
     endRange.collapse(false);

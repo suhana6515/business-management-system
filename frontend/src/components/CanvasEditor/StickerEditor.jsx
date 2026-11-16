@@ -174,6 +174,12 @@ const StickerEditor = observer(() => {
         return {
           width: 100,
           height: 44.15,
+          cols: 2,
+          rows: 6,
+          marginLeft: 5 * MM_TO_PX,
+          marginTop: 13.5 * MM_TO_PX,
+          gapX: 0,
+          gapY: 1.2 * MM_TO_PX,
         };
 
       case "logo-sticker":
@@ -181,6 +187,12 @@ const StickerEditor = observer(() => {
         return {
           width: 64,
           height: 34,
+          cols: 3,
+          rows: 8,
+          marginLeft: 7 * MM_TO_PX,
+          marginTop: 12.5 * MM_TO_PX,
+          gapX: 2.0 * MM_TO_PX,
+          gapY: 0,
         };
     }
   })();
@@ -568,24 +580,26 @@ const StickerEditor = observer(() => {
           <p style={{ fontSize: "16px", marginTop: "10px" }}>Text</p>
         </button>
 
-        <button
-          style={{
-            width: "100%",
-            padding: "20px",
-            marginTop: "15px",
-            outline: "none",
-            border: "none",
-            background: "none",
-          }}
-          onClick={() =>
-            setActivePanel(
-              activePanel === "fontCombinations" ? null : "fontCombinations",
-            )
-          }
-        >
-          <LuLayoutTemplate size={24} />
-          <p style={{ fontSize: "16px", marginTop: "10px" }}>Templates</p>
-        </button>
+        {stickerType === "logo-sticker" ? (
+          <button
+            style={{
+              width: "100%",
+              padding: "20px",
+              marginTop: "15px",
+              outline: "none",
+              border: "none",
+              background: "none",
+            }}
+            onClick={() =>
+              setActivePanel(
+                activePanel === "fontCombinations" ? null : "fontCombinations",
+              )
+            }
+          >
+            <LuLayoutTemplate size={24} />
+            <p style={{ fontSize: "16px", marginTop: "10px" }}>Templates</p>
+          </button>
+        ) : null}
 
         <button
           type="button"
