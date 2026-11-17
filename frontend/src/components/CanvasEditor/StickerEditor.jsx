@@ -1449,8 +1449,6 @@ const StickerEditor = observer(() => {
                                 width={shape.imageWidth}
                                 height={shape.imageHeight}
                                 fill={loadedImage ? "transparent" : shape.fill}
-                                stroke={shape.strokeColor}
-                                strokeWidth={shape.strokeWidth}
                                 onClick={shapeClick}
                               />
                             )}
@@ -1460,8 +1458,6 @@ const StickerEditor = observer(() => {
                                 y={0}
                                 radius={width / 2}
                                 fill={loadedImage ? "transparent" : shape.fill}
-                                stroke={shape.strokeColor}
-                                strokeWidth={shape.strokeWidth}
                                 onClick={shapeClick}
                               />
                             )}
@@ -1472,8 +1468,6 @@ const StickerEditor = observer(() => {
                                 radiusX={width / 2}
                                 radiusY={height / 2}
                                 fill={loadedImage ? "transparent" : shape.fill}
-                                stroke={shape.strokeColor}
-                                strokeWidth={shape.strokeWidth}
                                 onClick={shapeClick}
                               />
                             )}
@@ -1484,8 +1478,6 @@ const StickerEditor = observer(() => {
                                 sides={3}
                                 radius={50}
                                 fill={loadedImage ? "transparent" : shape.fill}
-                                stroke={shape.strokeColor}
-                                strokeWidth={shape.strokeWidth}
                                 onClick={shapeClick}
                               />
                             )}
@@ -1497,8 +1489,6 @@ const StickerEditor = observer(() => {
                                 innerRadius={25}
                                 outerRadius={50}
                                 fill={loadedImage ? "transparent" : shape.fill}
-                                stroke={shape.strokeColor}
-                                strokeWidth={shape.strokeWidth}
                                 onClick={shapeClick}
                               />
                             )}
@@ -1827,7 +1817,6 @@ const StickerEditor = observer(() => {
                       setSelectedTemplateId(group.id);
                       setSelectedShapeId(null);
                       setSelectedShapeImageId(null);
-
                       setSelectedElement(null);
                       store.selectText(false);
                     }}
@@ -1851,9 +1840,7 @@ const StickerEditor = observer(() => {
                         fill={text.fill}
                         onDblClick={(e) => {
                           e.cancelBubble = true;
-
-                          setSelectedTemplateId(group.id);
-
+                          setSelectedTemplateId(null);
                           setEditingTemplateTextId({
                             groupId: group.id,
                             textId: text.id,
@@ -1914,7 +1901,7 @@ const StickerEditor = observer(() => {
                               : "normal",
                             color: text.fill,
                             background: "transparent",
-                            border: "1px dashed #888",
+                            border: "none",
                             outline: "none",
                             resize: "none",
                             minWidth: "150px",
