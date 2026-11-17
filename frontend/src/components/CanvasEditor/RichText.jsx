@@ -64,18 +64,41 @@ function RichText({ textNode, richHtml = "", onCommit }) {
   });
 
   const fontSizes = generateFontSizes(8, 72, 2);
-
   const handleFontSizeChange = (e) => {
     const nextSize = Number(e.target.value);
+
     if (!Number.isFinite(nextSize) || nextSize <= 0) {
       return;
     }
+
+    restoreSelection();
+
+    document.execCommand("fontSize", false, "7");
+
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+
+    if (editor && selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+
+      editor.querySelectorAll('font[size="7"]').forEach((font) => {
+        font.removeAttribute("size");
+        font.style.fontSize = `${nextSize}px`;
+      });
+
+      if (range.collapsed) {
+        editor.style.fontSize = `${nextSize}px`;
+      }
+    }
+
+    saveSelection();
+
     setTextConfig((prev) => ({
       ...prev,
       fontSize: nextSize,
     }));
-    setStyle((previous) => ({
-      ...previous,
+    setStyle((prev) => ({
+      ...prev,
       fontSize: nextSize,
     }));
   };
@@ -179,31 +202,16 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     if (!editor) return;
 
-    editor.focus();
-
-    const selection = window.getSelection();
-    const range = document.createRange();
-
-    range.selectNodeContents(editor);
-
-    selection?.removeAllRanges();
-    selection?.addRange(range);
+    restoreSelection();
 
     document.execCommand("fontName", false, fontFamily);
+
+    saveSelection();
 
     setStyle((current) => ({
       ...current,
       fontFamily,
     }));
-
-    const endRange = document.createRange();
-    endRange.selectNodeContents(editor);
-    endRange.collapse(false);
-
-    selection?.removeAllRanges();
-    selection?.addRange(endRange);
-
-    savedSelectionRef.current = endRange.cloneRange();
   };
 
   const applyTextColor = (color) => {
@@ -217,15 +225,15 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     saveSelection();
 
-    selectedColorRef.current = color;
-    setSelectedColor(color);
+    // selectedColorRef.current = color;
+    // setSelectedColor(color);
 
     setStyle((current) => ({
       ...current,
       fontColor: color,
     }));
 
-    setShowColors(false);
+    // setShowColors(false);
   };
 
   const executeCommand = (command, commandValue) => {
@@ -306,8 +314,8 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         position: "absolute",
         top: position.y,
         left: position.x - 50,
-        width: "textNode.width() * absoluteScale.x",
-        height: "textNode.height() * absoluteScale.y",
+        width: textNode.width() * absoluteScale.x,
+        height: textNode.height() * absoluteScale.y,
         minWidth: Math.max(200, textNode.width() * absoluteScale.x),
         boxSizing: "border-box",
       }}
@@ -474,11 +482,6 @@ function RichText({ textNode, richHtml = "", onCommit }) {
           background: "transparent",
           color: textNode.fill(),
           outline: "none",
-          fontSize: textConfig.fontSize * absoluteScale.y,
-          fontFamily: style.fontFamily,
-          fontStyle: style.fontStyle.includes("italic") ? "italic" : "normal",
-          fontWeight: style.fontStyle.includes("bold") ? "bold" : "normal",
-          textDecoration: style.textDecoration,
           cursor: "text",
           boxSizing: "border-box",
           padding: 0,

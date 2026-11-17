@@ -1681,43 +1681,68 @@ const StickerEditor = observer(() => {
                 />
 
                 {store.showText && (
-                  <Text
-                    ref={textRef}
-                    x={store.text.x}
-                    y={store.text.y}
-                    width={store.text.width}
-                    text={store.text.value}
-                    fontSize={store.text.fontSize}
-                    fontStyle={store.text.fontStyle}
-                    fontFamily={store.text.fontFamily}
-                    textDecoration={store.text.textDecoration}
-                    fill={store.text.fill}
-                    visible={!store.isEditing}
-                    draggable={!store.isEditing}
-                    onClick={(e) => {
-                      e.cancelBubble = true;
-                      store.selectText(true);
-                      setSelectedElement("text");
-                      handleElementClick(e);
-                      setSelectedTemplateId(null);
-                    }}
-                    onDblClick={handleTextEdit}
-                    onDragEnd={(e) =>
-                      store.updateTextPosition(e.target.x(), e.target.y())
-                    }
-                    onTransformEnd={() => {
-                      const node = textRef.current;
+                  <>
+                    <Text
+                      ref={textRef}
+                      x={store.text.x}
+                      y={store.text.y}
+                      width={store.text.width}
+                      text={store.text.value}
+                      fontSize={store.text.fontSize}
+                      fontStyle={store.text.fontStyle}
+                      fontFamily={store.text.fontFamily}
+                      textDecoration={store.text.textDecoration}
+                      fill={store.text.fill}
+                      opacity={0}
+                      visible={!store.isEditing}
+                      draggable={!store.isEditing}
+                      onClick={(e) => {
+                        e.cancelBubble = true;
+                        store.selectText(true);
+                        setSelectedElement("text");
+                        handleElementClick(e);
+                        setSelectedTemplateId(null);
+                      }}
+                      onDblClick={handleTextEdit}
+                      onDragEnd={(e) =>
+                        store.updateTextPosition(e.target.x(), e.target.y())
+                      }
+                      onTransformEnd={() => {
+                        const node = textRef.current;
 
-                      if (!node) return;
+                        if (!node) return;
 
-                      const width = Math.max(30, node.width() * node.scaleX());
+                        const width = Math.max(
+                          30,
+                          node.width() * node.scaleX(),
+                        );
 
-                      node.scaleX(1);
-                      node.scaleY(1);
+                        node.scaleX(1);
+                        node.scaleY(1);
 
-                      store.updateTextTransform(node.x(), node.y(), width);
-                    }}
-                  />
+                        store.updateTextTransform(node.x(), node.y(), width);
+                      }}
+                    />
+                    {!store.isEditing && (
+                      <Html>
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: store.text.x,
+                            top: store.text.y,
+                            width: store.text.width,
+                            fontSize: store.text.fontSize,
+                            fontFamily: store.text.fontFamily,
+                            color: store.text.fill,
+                            pointerEvents: "none",
+                          }}
+                          dangerouslySetInnerHTML={{
+                            __html: store.text.richHtml || store.text.value,
+                          }}
+                        />
+                      </Html>
+                    )}
+                  </>
                 )}
 
                 {store.isEditing && editingNode && (
