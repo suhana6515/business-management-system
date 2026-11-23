@@ -4,8 +4,6 @@ const commands = [
   { command: "bold", label: <b>B</b> },
   { command: "italic", label: <i>I</i> },
   { command: "underline", label: <u>U</u> },
-  { command: "formatBlock", value: "h1", label: "H1" },
-  { command: "formatBlock", value: "h2", label: "H2" },
 ];
 
 const fontFamilies = [
@@ -31,11 +29,6 @@ const fontColors = [
   "#E91E63",
   "#795548",
 ];
-
-const headingSizes = {
-  h1: 60,
-  h2: 32,
-};
 
 const generateFontSizes = (min = 8, max = 72, step = 2) => {
   const sizes = [];
@@ -147,10 +140,18 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     const editor = editorRef.current;
 
+    const maxFontSize = Math.max(
+      style.fontSize,
+      ...Array.from(editor.querySelectorAll("*")).map((el) => {
+        return parseFloat(window.getComputedStyle(el).fontSize) || 0;
+      }),
+    );
+
     onCommit(
       editor.innerText,
       {
         ...style,
+        fontSize: maxFontSize,
         fontColor: selectedColorRef.current,
       },
       editor.innerHTML,
@@ -225,35 +226,18 @@ function RichText({ textNode, richHtml = "", onCommit }) {
 
     saveSelection();
 
-    // selectedColorRef.current = color;
-    // setSelectedColor(color);
-
     setStyle((current) => ({
       ...current,
       fontColor: color,
     }));
-
-    // setShowColors(false);
   };
 
-  const executeCommand = (command, commandValue) => {
+  const executeCommand = (command) => {
     const editor = editorRef.current;
 
     if (!editor) return;
 
     restoreSelection();
-
-    if (command === "formatBlock") {
-      document.execCommand("formatBlock", false, commandValue);
-
-      setStyle((current) => ({
-        ...current,
-        fontSize: headingSizes[commandValue],
-      }));
-
-      saveSelection();
-      return;
-    }
 
     document.execCommand(command, false, null);
 
@@ -324,6 +308,8 @@ function RichText({ textNode, richHtml = "", onCommit }) {
         style={{
           position: "absolute",
           bottom: "100%",
+          left: "50%",
+          transform: "translateX(-50%)",
           marginBottom: "10px",
           display: "flex",
           flexWrap: "nowrap",
@@ -333,6 +319,7 @@ function RichText({ textNode, richHtml = "", onCommit }) {
           background: "white",
           width: "max-content",
           borderRadius: "8px",
+          zIndex: 1000,
         }}
       >
         {commands.map(({ command, value, label }) => (

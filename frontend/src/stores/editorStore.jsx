@@ -313,6 +313,10 @@ const EditorStore = types
     },
 
     showTextElement() {
+      if (!self.showText) {
+        applySnapshot(self.text, getSnapshot(TextModel.create({})));
+      }
+
       self.showText = true;
       self.isEditing = false;
       self.isTextSelected = true;

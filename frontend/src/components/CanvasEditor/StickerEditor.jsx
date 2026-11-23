@@ -455,7 +455,7 @@ const StickerEditor = observer(() => {
     } else {
       transformer.nodes([]);
     }
-
+    transformer.forceUpdate();
     transformer.getLayer()?.batchDraw();
   }, [store.showText, store.isTextSelected, store.isEditing, selectedElement]);
 
@@ -785,7 +785,7 @@ const StickerEditor = observer(() => {
                       backgroundColor: color,
                       border:
                         store.backgroundColor === color
-                          ? "3px solid #2563eb"
+                          ? "1px solid #131314"
                           : "1px solid #ccc",
                       borderRadius: "50%",
                     }}
@@ -1677,6 +1677,7 @@ const StickerEditor = observer(() => {
                       x={store.text.x}
                       y={store.text.y}
                       width={store.text.width}
+                      lineHeight={0.8}
                       text={store.text.value}
                       fontSize={store.text.fontSize}
                       fontStyle={store.text.fontStyle}
@@ -1692,9 +1693,10 @@ const StickerEditor = observer(() => {
                         setSelectedElement("text");
                         handleElementClick(e);
                         setSelectedTemplateId(null);
+                        setSelectedShapeId(null);
                       }}
                       onDblClick={handleTextEdit}
-                      onDragEnd={(e) =>
+                      onDragMove={(e) =>
                         store.updateTextPosition(e.target.x(), e.target.y())
                       }
                       onTransformEnd={() => {

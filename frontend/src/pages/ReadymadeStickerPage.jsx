@@ -1,5 +1,5 @@
 import ProductCard from "../components/ProductCard";
-//import { products } from "./ProductPage";
+//import { product } from "./ProductPage";
 
 function ReadymadeStickerPage() {
   return (
